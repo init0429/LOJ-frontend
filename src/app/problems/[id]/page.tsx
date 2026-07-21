@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Editor from "@monaco-editor/react";
 import { useSubmissionState } from "@/hooks/useSubmissionState";
-import { Play, Send, ChevronLeft, Terminal, CheckCircle, XCircle, Code2, Check, X } from "lucide-react";
+import { Play, Send, ChevronLeft, Terminal, CheckCircle, XCircle } from "lucide-react";
 import clsx from "clsx";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 
@@ -190,9 +190,7 @@ export default function ProblemWorkspace() {
           </Panel>
 
           {/* Vertical Handle */}
-          <PanelResizeHandle className="w-2 bg-slate-950 hover:bg-emerald-500/20 transition-colors cursor-col-resize flex flex-col justify-center items-center group">
-            <div className="w-0.5 h-8 bg-slate-700 group-hover:bg-emerald-500 rounded-full transition-colors" />
-          </PanelResizeHandle>
+          <PanelResizeHandle className="w-2 bg-slate-950 hover:bg-emerald-500/20 transition-colors cursor-col-resize" />
 
           {/* Right Pane (Editor & Console) */}
           <Panel defaultSize={60} minSize={30}>
@@ -233,9 +231,7 @@ export default function ProblemWorkspace() {
               </Panel>
 
               {/* Horizontal Handle */}
-              <PanelResizeHandle className="h-2 bg-slate-950 hover:bg-emerald-500/20 transition-colors cursor-row-resize flex justify-center items-center group relative z-10">
-                <div className="h-0.5 w-8 bg-slate-700 group-hover:bg-emerald-500 rounded-full transition-colors" />
-              </PanelResizeHandle>
+              <PanelResizeHandle className="h-2 bg-slate-950 hover:bg-emerald-500/20 transition-colors cursor-row-resize" />
 
               {/* Console Bottom Pane */}
               <Panel defaultSize={30} minSize={10} className="bg-slate-900 flex flex-col border-t border-slate-800">
