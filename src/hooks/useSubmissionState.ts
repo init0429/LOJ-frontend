@@ -1,9 +1,5 @@
 import { useEffect, useState } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+import { supabase } from "@/lib/supabase";
 
 export function useSubmissionState(subId: string | null) {
   const [status, setStatus] = useState<string>("코드 작성 중");
@@ -15,6 +11,7 @@ export function useSubmissionState(subId: string | null) {
     }
 
     setStatus("Pending");
+    console.log("Subscribing to realtime updates for:", subId);
 
     const channel = supabase
       .channel(`submission-updates-${subId}`)
@@ -39,9 +36,13 @@ export function useSubmissionState(subId: string | null) {
           }
         },
       )
-      .subscribe();
+      .subscribe((status, err) => {
+        console.log("Realtime subscription status:", status);
+        if (err) console.error("Realtime error:", err);
+      });
 
     return () => {
+      console.log("Unsubscribing from realtime updates for:", subId);
       supabase.removeChannel(channel);
     };
   }, [subId]);
