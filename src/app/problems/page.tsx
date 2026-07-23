@@ -18,22 +18,42 @@ export default function ProblemsPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchProblems = async () => {
-      const { data, error } = await supabase
-        .from("problems")
-        .select("id, title, time_limit_ms, memory_limit_mb")
-        .order("id", { ascending: true });
+  const [stats, setStats] = useState<Record<number, { total: number; accepted: number }>>({});
 
-      if (error) {
-        console.error("문제 목록 로딩 에러:", error);
+  useEffect(() => {
+    const fetchData = async () => {
+      const [problemsRes, submissionsRes] = await Promise.all([
+        supabase
+          .from("problems")
+          .select("id, title, time_limit_ms, memory_limit_mb")
+          .order("id", { ascending: true }),
+        supabase.from("submissions").select("problem_id, status")
+      ]);
+
+      if (problemsRes.error) {
+        console.error("문제 목록 로딩 에러:", problemsRes.error);
       } else {
-        setProblems(data || []);
+        setProblems(problemsRes.data || []);
       }
+
+      if (submissionsRes.data) {
+        const newStats: Record<number, { total: number; accepted: number }> = {};
+        submissionsRes.data.forEach((sub) => {
+          if (!newStats[sub.problem_id]) {
+            newStats[sub.problem_id] = { total: 0, accepted: 0 };
+          }
+          newStats[sub.problem_id].total += 1;
+          if (sub.status === "Accepted") {
+            newStats[sub.problem_id].accepted += 1;
+          }
+        });
+        setStats(newStats);
+      }
+      
       setLoading(false);
     };
 
-    fetchProblems();
+    fetchData();
   }, []);
 
   // 가상의 데이터 생성 로직 (프로페셔널한 느낌을 주기 위함)
@@ -44,7 +64,9 @@ export default function ProblemsPage() {
   };
 
   const getAcceptance = (id: number) => {
-    return (40 + (id * 17) % 50).toFixed(1) + "%";
+    const stat = stats[id];
+    if (!stat || stat.total === 0) return "0.0%";
+    return ((stat.accepted / stat.total) * 100).toFixed(1) + "%";
   };
 
   return (
@@ -83,8 +105,7 @@ export default function ProblemsPage() {
               <tbody className="divide-y divide-slate-800/50">
                 {problems.map((problem) => {
                   const diff = getDifficulty(problem.id);
-                  // 가상의 상태 (문제 1번만 풀었다고 가정)
-                  const isSolved = problem.id === 1;
+                  const isSolved = stats[problem.id]?.accepted > 0;
                   
                   return (
                     <tr 

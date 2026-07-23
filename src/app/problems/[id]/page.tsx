@@ -8,6 +8,7 @@ import { useSubmissionState } from "@/hooks/useSubmissionState";
 import { Play, Send, ChevronLeft, Terminal, CheckCircle, XCircle } from "lucide-react";
 import clsx from "clsx";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
+import ProblemContent from "@/components/ProblemContent";
 
 export default function ProblemWorkspace() {
   const params = useParams();
@@ -15,12 +16,14 @@ export default function ProblemWorkspace() {
   const problemId = params.id as string;
 
   const [problem, setProblem] = useState<any>(null);
+  const [testCases, setTestCases] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
   const [activeLeftTab, setActiveLeftTab] = useState<"description" | "result" | "history">("description");
   const [activeConsoleTab, setActiveConsoleTab] = useState<"testcases" | "result">("testcases");
-  
+
   const [code, setCode] = useState("# 여기에 코드를 작성하세요.\n");
   const [language, setLanguage] = useState("python");
-  
+
   const [subId, setSubId] = useState<string | null>(null);
   const status = useSubmissionState(subId);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -32,9 +35,26 @@ export default function ProblemWorkspace() {
     const fetchProblem = async () => {
       const { data } = await supabase.from("problems").select("*").eq("id", problemId).single();
       if (data) setProblem(data);
+
+      const { data: testCasesData } = await supabase.from("test_cases").select("*").eq("problem_id", problemId).eq("is_hidden", false).order("id");
+      if (testCasesData) setTestCases(testCasesData);
     };
     fetchProblem();
   }, [problemId]);
+
+  useEffect(() => {
+    if (activeLeftTab === "history" && problemId) {
+      const fetchHistory = async () => {
+        const { data } = await supabase
+          .from("submissions")
+          .select("*")
+          .eq("problem_id", problemId)
+          .order("created_at", { ascending: false });
+        if (data) setHistory(data);
+      };
+      fetchHistory();
+    }
+  }, [activeLeftTab, problemId]);
 
   const handleSubmit = async () => {
     setIsSubmitting(true);
@@ -67,12 +87,45 @@ export default function ProblemWorkspace() {
     setIsTesting(true);
     setActiveConsoleTab("result");
     setTestResult("코드 실행 중...");
-    
-    // 시뮬레이션
-    setTimeout(() => {
-      setTestResult("테스트 결과: 임시 데이터\n\nInput: 1 2\nOutput: 3\nExpected: 3\nStatus: Accepted");
+
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      const response = await fetch(`${apiUrl}/test_run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          problem_id: parseInt(problemId, 10),
+          language,
+          code,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || data.status === "error") {
+        throw new Error(data.message || "서버 통신 에러");
+      }
+
+      // Format test result
+      const result = data.result;
+      let output = `최종 결과: ${result.status}\n\n`;
+
+      if (result.test_cases) {
+        result.test_cases.forEach((tc: any, i: number) => {
+          output += `[Test Case ${i + 1}] - ${tc.status}\n`;
+          output += `Input: ${tc.input.trim()}\n`;
+          output += `Expected: ${tc.expected.trim()}\n`;
+          output += `Actual: ${tc.actual.trim()}\n`;
+          output += `------------------------\n`;
+        });
+      }
+
+      setTestResult(output);
+    } catch (err: any) {
+      setTestResult(`실행 오류: ${err.message}`);
+    } finally {
       setIsTesting(false);
-    }, 1500);
+    }
   };
 
   if (!problem) {
@@ -93,15 +146,15 @@ export default function ProblemWorkspace() {
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <button 
+          <button
             onClick={handleTest}
             disabled={isTesting}
             className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 text-slate-200 px-4 py-1.5 rounded-lg font-medium transition-colors disabled:opacity-50 text-sm"
           >
             <Play size={14} className={isTesting ? "animate-pulse" : ""} /> 테스트
           </button>
-          <button 
-            onClick={handleSubmit} 
+          <button
+            onClick={handleSubmit}
             disabled={isSubmitting}
             className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-1.5 rounded-lg font-medium transition-colors shadow-lg shadow-emerald-900/20 disabled:opacity-50 text-sm"
           >
@@ -113,9 +166,9 @@ export default function ProblemWorkspace() {
       {/* Resizable Workspace */}
       <div className="flex-1 overflow-hidden p-2 gap-2 flex">
         <PanelGroup orientation="horizontal" className="w-full h-full rounded-xl overflow-hidden border border-slate-800 shadow-2xl">
-          
+
           {/* Left Pane (Description/Result) */}
-          <Panel defaultSize={40} minSize={25} className="bg-slate-900 flex flex-col">
+          <Panel defaultSize={50} minSize={25} className="bg-slate-900 flex flex-col">
             <div className="flex bg-slate-900 border-b border-slate-800 pt-2 px-2 gap-1 overflow-x-auto no-scrollbar shrink-0">
               {[
                 { id: "description", label: "문제 설명" },
@@ -134,19 +187,42 @@ export default function ProblemWorkspace() {
                 </button>
               ))}
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-slate-700">
               {activeLeftTab === "description" && (
                 <div className="prose prose-invert max-w-none">
                   <h2 className="text-2xl font-bold mb-4">{problem.title}</h2>
-                  <div className="flex gap-3 mb-6 text-xs font-medium">
+                  <div className="flex gap-3 mb-6 text-xs font-medium flex-wrap">
                     <span className="bg-emerald-500/10 text-emerald-400 px-2 py-1 rounded border border-emerald-500/20">Easy</span>
                     <span className="bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700">시간: {problem.time_limit_ms}ms</span>
                     <span className="bg-slate-800 text-slate-300 px-2 py-1 rounded border border-slate-700">메모리: {problem.memory_limit_mb}MB</span>
                   </div>
-                  <div className="text-slate-300 leading-relaxed whitespace-pre-wrap bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
-                    {problem.description}
-                  </div>
+
+                  {/* 문제 설명 */}
+                  <section className="mb-6">
+                    <h3 className="text-base font-semibold text-slate-200 mb-3">문제</h3>
+                    <ProblemContent content={problem.description} />
+                  </section>
+
+                  {/* 입력 조건 */}
+                  {problem.input_description && (
+                    <section className="mb-6">
+                      <h3 className="text-base font-semibold text-slate-200 mb-3">입력</h3>
+                      <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
+                        <ProblemContent content={problem.input_description} />
+                      </div>
+                    </section>
+                  )}
+
+                  {/* 출력 조건 */}
+                  {problem.output_description && (
+                    <section className="mb-6">
+                      <h3 className="text-base font-semibold text-slate-200 mb-3">출력</h3>
+                      <div className="bg-slate-950/50 p-4 rounded-xl border border-slate-800/50">
+                        <ProblemContent content={problem.output_description} />
+                      </div>
+                    </section>
+                  )}
                 </div>
               )}
 
@@ -165,12 +241,12 @@ export default function ProblemWorkspace() {
                         {status === "Wrong Answer" && <XCircle className="text-red-500 drop-shadow-[0_0_15px_rgba(239,68,68,0.5)]" size={72} />}
                         {status === "Pending" && <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-slate-700 border-t-blue-500"></div>}
                         {status === "Running" && <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-slate-700 border-t-yellow-500"></div>}
-                        
+
                         <div className={clsx(
                           "text-2xl font-bold mt-2",
                           status === "Accepted" ? "text-emerald-400" :
-                          status === "Wrong Answer" ? "text-red-400" :
-                          "text-blue-400"
+                            status === "Wrong Answer" ? "text-red-400" :
+                              "text-blue-400"
                         )}>
                           {status}
                         </div>
@@ -181,9 +257,34 @@ export default function ProblemWorkspace() {
               )}
 
               {activeLeftTab === "history" && (
-                <div className="text-slate-500 text-center mt-20 flex flex-col items-center gap-3">
-                  <Terminal size={48} className="text-slate-700" />
-                  제출 기록 기능은 아직 준비 중입니다.
+                <div className="flex flex-col gap-3">
+                  <h3 className="text-lg font-bold text-slate-200 mb-2">제출 현황</h3>
+                  {history.length === 0 ? (
+                    <div className="text-slate-500 text-center mt-10">
+                      제출 내역이 없습니다.
+                    </div>
+                  ) : (
+                    history.map((sub, idx) => (
+                      <div key={sub.id || idx} className="bg-slate-900 border border-slate-800 p-4 rounded-xl shadow-sm flex items-center justify-between">
+                        <div>
+                          <div className={clsx(
+                            "font-semibold text-sm mb-1",
+                            sub.status === "Accepted" ? "text-emerald-400" :
+                              sub.status === "Pending" || sub.status === "Running" ? "text-blue-400" :
+                                "text-red-400"
+                          )}>
+                            {sub.status}
+                          </div>
+                          <div className="text-xs text-slate-400">
+                            {sub.language} | {new Date(sub.created_at).toLocaleString()}
+                          </div>
+                        </div>
+                        <div className="text-xs font-mono bg-slate-950 px-2 py-1 rounded text-slate-500">
+                          {sub.id.substring(0, 8)}
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
@@ -193,12 +294,12 @@ export default function ProblemWorkspace() {
           <PanelResizeHandle className="w-2 bg-slate-950 hover:bg-emerald-500/20 transition-colors cursor-col-resize" />
 
           {/* Right Pane (Editor & Console) */}
-          <Panel defaultSize={60} minSize={30}>
+          <Panel defaultSize={50} minSize={30}>
             <PanelGroup orientation="vertical">
               {/* Editor Top Pane */}
-              <Panel defaultSize={70} minSize={20} className="bg-[#1e1e1e] flex flex-col relative">
+              <Panel defaultSize={50} minSize={20} className="bg-[#1e1e1e] flex flex-col relative">
                 <div className="absolute top-2 left-4 z-10">
-                  <select 
+                  <select
                     value={language}
                     onChange={(e) => setLanguage(e.target.value)}
                     className="bg-slate-800 text-slate-200 text-xs font-medium border border-slate-700 rounded-md px-3 py-1.5 focus:outline-none focus:border-emerald-500 hover:bg-slate-700 transition-colors cursor-pointer"
@@ -209,7 +310,7 @@ export default function ProblemWorkspace() {
                     <option value="node" disabled>Node.js (준비 중)</option>
                   </select>
                 </div>
-                
+
                 <div className="flex-1 pt-12">
                   <Editor
                     height="100%"
@@ -234,7 +335,7 @@ export default function ProblemWorkspace() {
               <PanelResizeHandle className="h-2 bg-slate-950 hover:bg-emerald-500/20 transition-colors cursor-row-resize" />
 
               {/* Console Bottom Pane */}
-              <Panel defaultSize={30} minSize={10} className="bg-slate-900 flex flex-col border-t border-slate-800">
+              <Panel defaultSize={50} minSize={10} className="bg-slate-900 flex flex-col border-t border-slate-800">
                 <div className="flex bg-slate-900 border-b border-slate-800 px-2 pt-2 gap-1 shrink-0">
                   {[
                     { id: "testcases", label: "Testcases" },
@@ -255,11 +356,19 @@ export default function ProblemWorkspace() {
                 </div>
                 <div className="flex-1 p-4 font-mono text-sm overflow-auto scrollbar-thin scrollbar-thumb-slate-700 bg-[#0d1117]">
                   {activeConsoleTab === "testcases" && (
-                    <div className="text-slate-400">
-                      <p className="mb-2 font-semibold text-slate-300">Input:</p>
-                      <div className="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-slate-300 mb-4">1 2</div>
-                      <p className="mb-2 font-semibold text-slate-300">Expected Output:</p>
-                      <div className="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-slate-300">3</div>
+                    <div className="text-slate-400 space-y-6">
+                      {testCases.map((tc, idx) => (
+                        <div key={tc.id || idx}>
+                          <h4 className="text-emerald-400 font-semibold mb-2">Test Case {idx + 1}</h4>
+                          <p className="mb-2 font-semibold text-slate-300">Input:</p>
+                          <div className="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-slate-300 mb-4 whitespace-pre-wrap">{tc.input_data}</div>
+                          <p className="mb-2 font-semibold text-slate-300">Expected Output:</p>
+                          <div className="bg-slate-800/50 p-2 rounded border border-slate-700/50 text-slate-300 whitespace-pre-wrap">{tc.expected_output}</div>
+                        </div>
+                      ))}
+                      {testCases.length === 0 && (
+                        <div className="text-slate-500 italic">등록된 테스트 케이스가 없습니다.</div>
+                      )}
                     </div>
                   )}
                   {activeConsoleTab === "result" && (

@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { Code2, LogOut, User } from "lucide-react";
 import { usePathname } from "next/navigation";
+import clsx from "clsx";
 
 export default function Navbar() {
   const [session, setSession] = useState<any>(null);
@@ -41,13 +42,31 @@ export default function Navbar() {
           LOJ Platform
         </Link>
         <div className="hidden md:flex gap-1 text-sm font-medium">
-          <Link href="/problems" className="px-4 py-2 text-slate-300 hover:text-emerald-400 hover:bg-slate-800 rounded-lg transition-colors">
+          <Link 
+            href="/problems" 
+            className={clsx(
+              "px-4 py-2 rounded-lg transition-colors",
+              pathname.startsWith("/problems") ? "text-emerald-400 bg-slate-800" : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
+            )}
+          >
             문제 목록
           </Link>
-          <Link href="#" className="px-4 py-2 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+          <Link 
+            href="/contests" 
+            className={clsx(
+              "px-4 py-2 rounded-lg transition-colors",
+              pathname.startsWith("/contests") ? "text-emerald-400 bg-slate-800" : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
+            )}
+          >
             콘테스트
           </Link>
-          <Link href="#" className="px-4 py-2 text-slate-500 hover:text-slate-300 hover:bg-slate-800 rounded-lg transition-colors">
+          <Link 
+            href="/leaderboard" 
+            className={clsx(
+              "px-4 py-2 rounded-lg transition-colors",
+              pathname.startsWith("/leaderboard") ? "text-emerald-400 bg-slate-800" : "text-slate-500 hover:text-slate-300 hover:bg-slate-800/50"
+            )}
+          >
             리더보드
           </Link>
         </div>

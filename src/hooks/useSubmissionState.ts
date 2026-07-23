@@ -11,39 +11,39 @@ export function useSubmissionState(subId: string | null) {
     }
 
     setStatus("Pending");
-    console.log("Subscribing to realtime updates for:", subId);
+    let isSubscribed = true;
 
-    const channel = supabase
-      .channel(`submission-updates-${subId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "submissions",
-          filter: `id=eq.${subId}`,
-        },
-        (payload) => {
-          console.log("상태 변경 감지: ", payload.new.status);
-          setStatus(payload.new.status);
+    const pollStatus = async () => {
+      if (!isSubscribed) return;
+      const { data, error } = await supabase
+        .from("submissions")
+        .select("status")
+        .eq("id", subId)
+        .single();
+        
+      if (error) {
+        console.error("상태 조회 에러:", error);
+        return;
+      }
 
-          if (
-            ["Accepted", "Wrong Answer", "Time Limit Exceeded", "Runtime Error"].includes(
-              payload.new.status,
-            )
-          ) {
-            supabase.removeChannel(channel);
-          }
-        },
-      )
-      .subscribe((status, err) => {
-        console.log("Realtime subscription status:", status);
-        if (err) console.error("Realtime error:", err);
-      });
+      if (data) {
+        setStatus(data.status);
+        if (["Accepted", "Wrong Answer", "Time Limit Exceeded", "Runtime Error", "System Error"].includes(data.status)) {
+          // Terminal status reached, stop polling
+          isSubscribed = false;
+        }
+      }
+    };
+
+    const intervalId = setInterval(() => {
+      if (isSubscribed) {
+        pollStatus();
+      }
+    }, 1000);
 
     return () => {
-      console.log("Unsubscribing from realtime updates for:", subId);
-      supabase.removeChannel(channel);
+      isSubscribed = false;
+      clearInterval(intervalId);
     };
   }, [subId]);
 
