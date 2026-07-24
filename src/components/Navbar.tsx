@@ -89,7 +89,7 @@ export default function Navbar() {
             href="/"
             className="docket-label text-[11px] border border-[var(--seal)] text-[var(--seal)] hover:bg-[var(--seal)] hover:text-[var(--ink)] px-4 py-2 rounded-sm transition-colors"
           >
-            출석 등록
+            로그인
           </Link>
         )}
       </div>

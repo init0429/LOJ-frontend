@@ -2,12 +2,25 @@ import { clsx } from "clsx";
 
 export type StampTone = "accept" | "reject" | "pending" | "neutral";
 
-const TONE_STYLES: Record<StampTone, { border: string; text: string; bg: string }> = {
-    accept: { border: "border-[var(--accept)]", text: "text-[var(--accept)]", bg: "bg-[var(--accept)]/10" },
-    reject: { border: "border-[var(--reject)]", text: "text-[var(--reject)]", bg: "bg-[var(--reject)]/10" },
-    pending: { border: "border-[var(--pending)]", text: "text-[var(--pending)]", bg: "bg-[var(--pending)]/10" },
-    neutral: { border: "border-[var(--rule-strong)]", text: "text-[var(--text-dim)]", bg: "bg-transparent" },
+const TONE_STYLES: Record<StampTone, { border: string; text: string; bg: string; tilt: string }> = {
+    accept: { border: "border-[var(--accept)]", text: "text-[var(--accept)]", bg: "bg-[var(--accept)]/10", tilt: "-rotate-2" },
+    reject: { border: "border-[var(--reject)]", text: "text-[var(--reject)]", bg: "bg-[var(--reject)]/10", tilt: "rotate-2" },
+    pending: { border: "border-[var(--pending)]", text: "text-[var(--pending)]", bg: "bg-[var(--pending)]/10", tilt: "-rotate-1" },
+    neutral: { border: "border-[var(--rule-strong)]", text: "text-[var(--text-dim)]", bg: "bg-transparent", tilt: "rotate-1" },
 };
+
+export const STATUS_LABEL_KO: Record<string, string> = {
+    Accepted: "인용",
+    "Wrong Answer": "기각",
+    "Time Limit Exceeded": "시간초과",
+    "Runtime Error": "실행오류",
+    "Compile Error": "컴파일오류",
+    "System Error": "시스템오류",
+    Pending: "대기",
+    Running: "채점 중",
+};
+
+export const statusLabel = (status: string) => STATUS_LABEL_KO[status] ?? status;
 
 export default function StampTag({
     label,
@@ -32,7 +45,7 @@ export default function StampTag({
                 styles.border,
                 styles.text,
                 styles.bg,
-                tilt && "-rotate-2"
+                tilt && styles.tilt
             )}
             style={{
                 boxShadow: `0 0 0 1px var(--ink), inset 0 0 0 1px currentColor`,

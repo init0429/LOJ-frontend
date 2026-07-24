@@ -73,7 +73,7 @@ export default function Home() {
             <div>
               <h1 className="docket-label text-2xl tracking-[0.2em] text-[var(--text)]">LOJ</h1>
               <p className="text-[var(--text-dim)] text-xs docket-label tracking-[0.16em] mt-0.5">
-                Lize Online Judge — 사건기록부
+                Local Online Judge — 사건기록부
               </p>
             </div>
           </div>
@@ -118,7 +118,7 @@ export default function Home() {
           </div>
 
           <div className="docket-label text-[11px] text-[var(--text-faint)] mb-2">
-            {mode === "login" ? "출석 확인" : "신규 등록"}
+            {mode === "login" ? "로그인" : "회원가입"}
           </div>
           <h2 className="text-2xl font-semibold text-[var(--text)] mb-1">
             {mode === "login" ? "다시 오셨군요" : "계정 만들기"}
@@ -138,7 +138,7 @@ export default function Home() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full px-4 py-3 bg-[var(--paper)] border border-[var(--rule)] rounded-sm focus:outline-none focus:border-[var(--seal)] text-[var(--text)] placeholder-[var(--text-faint)] transition-colors"
-                placeholder="26_00@bssm.hs.kr"
+                placeholder="you@example.com"
               />
             </div>
             <div>
@@ -187,7 +187,7 @@ export default function Home() {
           <div className="mt-6 text-center">
             <button
               onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(null); }}
-              className="text-sm text-[var(--text-dim)] hover:text-[var(--seal)] transition-colors cursor-pointer"
+              className="text-sm text-[var(--text-dim)] hover:text-[var(--seal)] transition-colors"
             >
               {mode === "login" ? "계정이 없으신가요? 회원가입" : "이미 계정이 있으신가요? 로그인"}
             </button>

@@ -23,7 +23,7 @@ const mockContests: Contest[] = [
 ];
 
 const STATUS_META: Record<Contest["status"], { label: string; tone: StampTone; action: string }> = {
-  ongoing: { label: "심리 중", tone: "reject", action: "입정" },
+  ongoing: { label: "심리 중", tone: "reject", action: "참가하기" },
   upcoming: { label: "예정", tone: "pending", action: "알림 신청" },
   past: { label: "종결", tone: "neutral", action: "판결문 보기" },
 };

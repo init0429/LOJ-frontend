@@ -10,29 +10,29 @@ interface UserRank {
   username: string;
   rating: number;
   solved: number;
-  tier: "Grandmaster" | "Master" | "Expert" | "Specialist" | "Pupil";
+  tier: "대법관" | "부장판사" | "검사" | "변호사" | "수습생";
 }
 
 const mockLeaderboard: UserRank[] = [
-  { rank: 1, username: "tourist_kr", rating: 3500, solved: 1250, tier: "Grandmaster" },
-  { rank: 2, username: "algo_machine", rating: 3120, solved: 980, tier: "Grandmaster" },
-  { rank: 3, username: "dp_master", rating: 2950, solved: 870, tier: "Master" },
-  { rank: 4, username: "graph_searcher", rating: 2800, solved: 750, tier: "Master" },
-  { rank: 5, username: "greedy_boy", rating: 2600, solved: 600, tier: "Expert" },
-  { rank: 6, username: "brute_force99", rating: 2450, solved: 520, tier: "Expert" },
-  { rank: 7, username: "math_genius", rating: 2200, solved: 480, tier: "Specialist" },
-  { rank: 8, username: "string_lover", rating: 1950, solved: 410, tier: "Specialist" },
-  { rank: 9, username: "coding_newbie", rating: 1500, solved: 150, tier: "Pupil" },
-  { rank: 10, username: "hello_world", rating: 1200, solved: 50, tier: "Pupil" },
+  { rank: 1, username: "tourist_kr", rating: 3500, solved: 1250, tier: "대법관" },
+  { rank: 2, username: "algo_machine", rating: 3120, solved: 980, tier: "대법관" },
+  { rank: 3, username: "dp_master", rating: 2950, solved: 870, tier: "부장판사" },
+  { rank: 4, username: "graph_searcher", rating: 2800, solved: 750, tier: "부장판사" },
+  { rank: 5, username: "greedy_boy", rating: 2600, solved: 600, tier: "검사" },
+  { rank: 6, username: "brute_force99", rating: 2450, solved: 520, tier: "검사" },
+  { rank: 7, username: "math_genius", rating: 2200, solved: 480, tier: "변호사" },
+  { rank: 8, username: "string_lover", rating: 1950, solved: 410, tier: "변호사" },
+  { rank: 9, username: "coding_newbie", rating: 1500, solved: 150, tier: "수습생" },
+  { rank: 10, username: "hello_world", rating: 1200, solved: 50, tier: "수습생" },
 ];
 
 const getTierTone = (tier: UserRank["tier"]): StampTone => {
   switch (tier) {
-    case "Grandmaster": return "reject";
-    case "Master": return "pending";
-    case "Expert": return "neutral";
-    case "Specialist": return "neutral";
-    case "Pupil": return "accept";
+    case "대법관": return "reject";
+    case "부장판사": return "pending";
+    case "검사": return "neutral";
+    case "변호사": return "neutral";
+    case "수습생": return "accept";
     default: return "neutral";
   }
 };

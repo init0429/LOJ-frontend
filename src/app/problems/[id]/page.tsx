@@ -9,7 +9,7 @@ import { Play, Send, ChevronLeft } from "lucide-react";
 import clsx from "clsx";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import ProblemContent from "@/components/ProblemContent";
-import StampTag, { StampTone } from "@/components/StampTag";
+import StampTag, { StampTone, statusLabel } from "@/components/StampTag";
 
 // backend의 SupportedLanguage / judge의 LANGUAGES와 동기화해서 유지할 것.
 const STARTER_CODE: Record<string, string> = {
@@ -141,16 +141,15 @@ export default function ProblemWorkspace() {
         throw new Error(data.message || "서버 통신 에러");
       }
 
-      // Format test result
       const result = data.result;
-      let output = `최종 결과: ${result.status}\n\n`;
+      let output = `최종 결과: ${statusLabel(result.status)}\n\n`;
 
       if (result.test_cases) {
         result.test_cases.forEach((tc: any, i: number) => {
-          output += `[Test Case ${i + 1}] - ${tc.status}\n`;
-          output += `Input: ${tc.input.trim()}\n`;
-          output += `Expected: ${tc.expected.trim()}\n`;
-          output += `Actual: ${tc.actual.trim()}\n`;
+          output += `[테스트케이스 ${i + 1}] - ${statusLabel(tc.status)}\n`;
+          output += `입력값: ${tc.input.trim()}\n`;
+          output += `기댓값: ${tc.expected.trim()}\n`;
+          output += `실제값: ${tc.actual.trim()}\n`;
           output += `------------------------\n`;
         });
       }
@@ -277,10 +276,10 @@ export default function ProblemWorkspace() {
                         {(status === "Pending" || status === "Running") ? (
                           <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-b-4 border-[var(--rule-strong)] border-t-[var(--pending)]"></div>
                         ) : (
-                          <StampTag label={status} tone={statusTone(status)} size="lg" />
+                          <StampTag label={statusLabel(status)} tone={statusTone(status)} size="lg" />
                         )}
                         {(status === "Pending" || status === "Running") && (
-                          <div className="docket-label text-sm text-[var(--pending)]">{status}</div>
+                          <div className="docket-label text-sm text-[var(--pending)]">{statusLabel(status)}</div>
                         )}
                       </div>
                     </div>
@@ -299,7 +298,7 @@ export default function ProblemWorkspace() {
                     history.map((sub, idx) => (
                       <div key={sub.id || idx} className="bg-[var(--paper)] border border-[var(--rule)] p-4 flex items-center justify-between border-l-2 border-l-[var(--rule)]">
                         <div className="flex items-center gap-3">
-                          <StampTag label={sub.status} tone={statusTone(sub.status)} size="sm" />
+                          <StampTag label={statusLabel(sub.status)} tone={statusTone(sub.status)} size="sm" />
                           <div className="text-xs text-[var(--text-dim)] docket-label">
                             {sub.language} · {new Date(sub.created_at).toLocaleString()}
                           </div>
