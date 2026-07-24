@@ -1,1 +1,40 @@
 @import "tailwindcss";
+
+:root {
+    --ink: #0a0a0b;
+    --paper: #151517;
+    --paper-raised: #1c1c1f;
+    --rule: #2c2c30;
+    --rule-strong: #3a3a3f;
+
+    --text: #eae7de;
+    --text-dim: #87858c;
+    --text-faint: #5a585e;
+
+    --seal: #c9a227;
+    --seal-dim: #8a7020;
+
+    --accept: #4c9a5b;
+    --accept-dim: #3a7546;
+    --reject: #b23a32;
+    --reject-dim: #8c2e28;
+    --pending: #b8860b;
+}
+
+html,
+body {
+    background: var(--ink);
+    color: var(--text);
+}
+
+.docket-label {
+    font-family: var(--font-geist-mono), monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-weight: 600;
+}
+
+.stamp-texture {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.4'/></svg>");
+    background-blend-mode: overlay;
+}

@@ -20,7 +20,7 @@ export function useSubmissionState(subId: string | null) {
         .select("status")
         .eq("id", subId)
         .single();
-        
+
       if (error) {
         console.error("상태 조회 에러:", error);
         return;
@@ -28,8 +28,7 @@ export function useSubmissionState(subId: string | null) {
 
       if (data) {
         setStatus(data.status);
-        if (["Accepted", "Wrong Answer", "Time Limit Exceeded", "Runtime Error", "System Error"].includes(data.status)) {
-          // Terminal status reached, stop polling
+        if (["Accepted", "Wrong Answer", "Time Limit Exceeded", "Runtime Error", "Compile Error", "System Error"].includes(data.status)) {
           isSubscribed = false;
         }
       }

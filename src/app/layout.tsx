@@ -14,8 +14,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LOJ Platform - Online Judge",
-  description: "안전하고 빠른 코딩 테스트 플랫폼",
+  title: "LOJ",
+  description: "제출한 코드는 심사를 거쳐 도장 찍힌 판결로 돌아옵니다.",
 };
 
 export default function RootLayout({
@@ -27,7 +27,7 @@ export default function RootLayout({
     <html
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-slate-950 text-slate-100">
+      <body className="min-h-full flex flex-col bg-[var(--ink)] text-[var(--text)]">
         <Navbar />
         <main className="flex-1 flex flex-col">
           {children}

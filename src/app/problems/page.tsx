@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Circle } from "lucide-react";
+import { CheckSquare, Square } from "lucide-react";
 import clsx from "clsx";
 
 interface Problem {
@@ -49,18 +49,17 @@ export default function ProblemsPage() {
         });
         setStats(newStats);
       }
-      
+
       setLoading(false);
     };
 
     fetchData();
   }, []);
 
-  // 가상의 데이터 생성 로직 (프로페셔널한 느낌을 주기 위함)
   const getDifficulty = (id: number) => {
-    if (id % 3 === 0) return { label: "Hard", color: "text-red-400" };
-    if (id % 2 === 0) return { label: "Medium", color: "text-yellow-400" };
-    return { label: "Easy", color: "text-emerald-400" };
+    if (id % 3 === 0) return { label: "중대", color: "text-[var(--reject)]" };
+    if (id % 2 === 0) return { label: "보통", color: "text-[var(--pending)]" };
+    return { label: "경미", color: "text-[var(--accept)]" };
   };
 
   const getAcceptance = (id: number) => {
@@ -69,18 +68,23 @@ export default function ProblemsPage() {
     return ((stat.accepted / stat.total) * 100).toFixed(1) + "%";
   };
 
+  const caseNo = (id: number) => `№ ${String(id).padStart(3, "0")}`;
+
   return (
-    <div className="flex-1 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="flex-1 py-12 px-4 sm:px-6 lg:px-8 bg-[var(--ink)]">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8 flex items-center justify-between">
-          <h1 className="text-3xl font-bold">문제 목록</h1>
+        <div className="mb-8 flex items-end justify-between border-b border-[var(--rule)] pb-4">
+          <div>
+            <div className="docket-label text-[11px] text-[var(--text-faint)] mb-1">Docket</div>
+            <h1 className="text-3xl font-semibold text-[var(--text)]">사건 목록</h1>
+          </div>
           <div className="flex gap-2">
-            <input 
-              type="text" 
-              placeholder="문제 검색..." 
-              className="px-4 py-2 bg-slate-900 border border-slate-800 rounded-lg focus:outline-none focus:border-emerald-500 text-sm"
+            <input
+              type="text"
+              placeholder="사건번호 · 제목 검색"
+              className="px-4 py-2 bg-[var(--paper)] border border-[var(--rule)] rounded-sm focus:outline-none focus:border-[var(--seal)] text-sm text-[var(--text)] placeholder-[var(--text-faint)]"
             />
-            <button className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-lg text-sm transition-colors">
+            <button className="docket-label text-[11px] px-4 py-2 bg-[var(--paper)] hover:bg-[var(--paper-raised)] border border-[var(--rule)] rounded-sm transition-colors text-[var(--text-dim)]">
               필터
             </button>
           </div>
@@ -88,44 +92,44 @@ export default function ProblemsPage() {
 
         {loading ? (
           <div className="flex justify-center py-20">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-emerald-500"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[var(--seal)]"></div>
           </div>
         ) : (
-          <div className="bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-xl">
-            <table className="w-full text-left text-sm text-slate-300">
-              <thead className="bg-slate-800/50 text-slate-400 border-b border-slate-800">
+          <div className="bg-[var(--paper)] border border-[var(--rule)] overflow-hidden">
+            <table className="w-full text-left text-sm text-[var(--text)]">
+              <thead className="bg-[var(--paper-raised)] docket-label text-[10px] text-[var(--text-dim)] border-b border-[var(--rule)]">
                 <tr>
-                  <th className="px-6 py-4 font-medium w-16 text-center">상태</th>
-                  <th className="px-6 py-4 font-medium w-24">#</th>
-                  <th className="px-6 py-4 font-medium">제목</th>
-                  <th className="px-6 py-4 font-medium w-32">정답률</th>
-                  <th className="px-6 py-4 font-medium w-32">난이도</th>
+                  <th className="px-6 py-4 w-16 text-center">해결</th>
+                  <th className="px-6 py-4 w-28">사건번호</th>
+                  <th className="px-6 py-4">제목</th>
+                  <th className="px-6 py-4 w-32">인용률</th>
+                  <th className="px-6 py-4 w-32">경중</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/50">
+              <tbody className="divide-y divide-[var(--rule)]">
                 {problems.map((problem) => {
                   const diff = getDifficulty(problem.id);
                   const isSolved = stats[problem.id]?.accepted > 0;
-                  
+
                   return (
-                    <tr 
+                    <tr
                       key={problem.id}
                       onClick={() => router.push(`/problems/${problem.id}`)}
-                      className="hover:bg-slate-800/80 cursor-pointer transition-colors group"
+                      className="hover:bg-[var(--paper-raised)] cursor-pointer transition-colors group border-l-2 border-l-transparent hover:border-l-[var(--seal)]"
                     >
                       <td className="px-6 py-4 text-center">
                         {isSolved ? (
-                          <CheckCircle2 className="inline-block text-emerald-500 w-5 h-5" />
+                          <CheckSquare className="inline-block text-[var(--accept)] w-4 h-4" />
                         ) : (
-                          <Circle className="inline-block text-slate-700 w-5 h-5 group-hover:text-slate-500 transition-colors" />
+                          <Square className="inline-block text-[var(--rule-strong)] w-4 h-4 group-hover:text-[var(--text-faint)] transition-colors" />
                         )}
                       </td>
-                      <td className="px-6 py-4 text-slate-500 font-mono">{problem.id}</td>
-                      <td className="px-6 py-4 font-medium text-slate-200 group-hover:text-emerald-400 transition-colors">
+                      <td className="px-6 py-4 text-[var(--text-dim)] docket-label text-[11px]">{caseNo(problem.id)}</td>
+                      <td className="px-6 py-4 font-medium text-[var(--text)] group-hover:text-[var(--seal)] transition-colors">
                         {problem.title}
                       </td>
-                      <td className="px-6 py-4 font-mono">{getAcceptance(problem.id)}</td>
-                      <td className={clsx("px-6 py-4 font-medium", diff.color)}>
+                      <td className="px-6 py-4 font-mono text-[var(--text-dim)]">{getAcceptance(problem.id)}</td>
+                      <td className={clsx("px-6 py-4 docket-label text-[11px]", diff.color)}>
                         {diff.label}
                       </td>
                     </tr>
@@ -133,10 +137,10 @@ export default function ProblemsPage() {
                 })}
               </tbody>
             </table>
-            
+
             {problems.length === 0 && (
-              <div className="text-center py-20 text-slate-500">
-                등록된 문제가 없습니다.
+              <div className="text-center py-20 text-[var(--text-dim)]">
+                접수된 사건이 없습니다.
               </div>
             )}
           </div>

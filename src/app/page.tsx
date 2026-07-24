@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { LogIn, ArrowRight, Code2, Shield, Zap } from "lucide-react";
+import { LogIn, ArrowRight, Scale } from "lucide-react";
 import { motion } from "framer-motion";
+import StampTag from "@/components/StampTag";
 
 export default function Home() {
   const [session, setSession] = useState<any>(null);
@@ -51,58 +52,50 @@ export default function Home() {
     setLoading(false);
   };
 
-  const features = [
-    { icon: <Zap size={20} />, label: "빠른 채점", desc: "Docker 샌드박스 기반 실시간 채점" },
-    { icon: <Shield size={20} />, label: "안전한 환경", desc: "격리된 컨테이너로 코드 보안 보장" },
-    { icon: <Code2 size={20} />, label: "Monaco 에디터", desc: "VS Code 수준의 코딩 경험" },
+  const docket = [
+    { no: "01", label: "샌드박스 채점", desc: "Docker 컨테이너 안에서만 코드가 실행됩니다" },
+    { no: "02", label: "즉시 판결", desc: "제출과 동시에 큐에 등록되어 순서대로 심사됩니다" },
+    { no: "03", label: "정식 기록", desc: "모든 제출 이력이 사건철에 남습니다" },
   ];
 
   return (
     <div className="flex-1 flex flex-col lg:flex-row">
       {/* Left: Branding */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 flex-col items-center justify-center p-16 relative overflow-hidden">
-        {/* Background decoration */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-cyan-500/5 rounded-full blur-3xl" />
-        </div>
-        
+      <div className="hidden lg:flex lg:w-1/2 bg-[var(--paper)] flex-col justify-center p-16 border-r border-[var(--rule)]">
         <motion.div
-          initial={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6 }}
-          className="relative z-10 max-w-md"
+          transition={{ duration: 0.5 }}
+          className="max-w-md"
         >
-          <div className="flex items-center gap-3 mb-8">
-            <div className="p-3 bg-emerald-500/10 rounded-2xl border border-emerald-500/20">
-              <Code2 className="text-emerald-400" size={32} />
-            </div>
+          <div className="flex items-center gap-3 mb-10">
+            <Scale className="text-[var(--seal)]" size={30} strokeWidth={2} />
             <div>
-              <h1 className="text-3xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                LOJ Platform
-              </h1>
-              <p className="text-slate-500 text-sm">Lightweight Online Judge</p>
+              <h1 className="docket-label text-2xl tracking-[0.2em] text-[var(--text)]">LOJ</h1>
+              <p className="text-[var(--text-dim)] text-xs docket-label tracking-[0.16em] mt-0.5">
+                Lize Online Judge — 사건기록부
+              </p>
             </div>
           </div>
-          
-          <p className="text-slate-300 text-xl leading-relaxed mb-12">
-            직접 만든 온라인 저지 플랫폼으로<br />
-            <span className="text-emerald-400 font-semibold">알고리즘 실력</span>을 키워보세요.
+
+          <p className="text-[var(--text)] text-lg leading-relaxed mb-12 border-l-2 border-[var(--seal)] pl-5">
+            제출한 코드는 격리된 법정에서 심사를 거쳐,<br />
+            <span className="text-[var(--seal)]">도장 찍힌 판결</span>로 돌아옵니다.
           </p>
 
-          <div className="space-y-4">
-            {features.map((f, i) => (
+          <div className="space-y-0 border-t border-[var(--rule)]">
+            {docket.map((d, i) => (
               <motion.div
-                key={f.label}
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.2 + i * 0.1 }}
-                className="flex items-start gap-4 p-4 bg-slate-800/40 rounded-xl border border-slate-700/50 hover:border-emerald-500/30 transition-colors"
+                key={d.no}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.15 + i * 0.1 }}
+                className="flex items-start gap-4 py-4 border-b border-[var(--rule)]"
               >
-                <div className="text-emerald-400 mt-0.5 shrink-0">{f.icon}</div>
+                <span className="docket-label text-[var(--text-faint)] text-sm shrink-0 pt-0.5">{d.no}</span>
                 <div>
-                  <div className="font-semibold text-slate-200 text-sm">{f.label}</div>
-                  <div className="text-slate-500 text-xs mt-0.5">{f.desc}</div>
+                  <div className="docket-label text-[13px] text-[var(--text)]">{d.label}</div>
+                  <div className="text-[var(--text-dim)] text-sm mt-1">{d.desc}</div>
                 </div>
               </motion.div>
             ))}
@@ -111,25 +104,26 @@ export default function Home() {
       </div>
 
       {/* Right: Auth Form */}
-      <div className="flex-1 flex items-center justify-center p-6 lg:p-16">
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-16 bg-[var(--ink)]">
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
           className="w-full max-w-md"
         >
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center justify-center gap-2 mb-8">
-            <Code2 className="text-emerald-400" size={28} />
-            <span className="text-2xl font-bold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-              LOJ Platform
-            </span>
+            <Scale className="text-[var(--seal)]" size={24} />
+            <span className="docket-label text-lg tracking-[0.2em]">LOJ</span>
           </div>
 
-          <h2 className="text-2xl font-bold text-slate-100 mb-1">
-            {mode === "login" ? "다시 오셨군요!" : "계정 만들기"}
+          <div className="docket-label text-[11px] text-[var(--text-faint)] mb-2">
+            {mode === "login" ? "출석 확인" : "신규 등록"}
+          </div>
+          <h2 className="text-2xl font-semibold text-[var(--text)] mb-1">
+            {mode === "login" ? "다시 오셨군요" : "계정 만들기"}
           </h2>
-          <p className="text-slate-500 text-sm mb-8">
+          <p className="text-[var(--text-dim)] text-sm mb-8">
             {mode === "login"
               ? "이메일과 비밀번호로 로그인하세요"
               : "이메일로 간단하게 가입할 수 있어요"}
@@ -137,42 +131,50 @@ export default function Home() {
 
           <form onSubmit={mode === "login" ? handleLogin : handleSignUp} className="flex flex-col gap-4">
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1.5">Email</label>
+              <label className="docket-label block text-[11px] text-[var(--text-dim)] mb-1.5">Email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 text-slate-200 placeholder-slate-600 transition-all"
-                placeholder="developer@example.com"
+                className="w-full px-4 py-3 bg-[var(--paper)] border border-[var(--rule)] rounded-sm focus:outline-none focus:border-[var(--seal)] text-[var(--text)] placeholder-[var(--text-faint)] transition-colors"
+                placeholder="26_00@bssm.hs.kr"
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-slate-400 mb-1.5">Password</label>
+              <label className="docket-label block text-[11px] text-[var(--text-dim)] mb-1.5">Password</label>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 minLength={6}
-                className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/50 focus:border-emerald-500/50 text-slate-200 placeholder-slate-600 transition-all"
+                className="w-full px-4 py-3 bg-[var(--paper)] border border-[var(--rule)] rounded-sm focus:outline-none focus:border-[var(--seal)] text-[var(--text)] placeholder-[var(--text-faint)] transition-colors"
                 placeholder="••••••••"
               />
             </div>
 
             {error && (
-              <p className={`text-sm mt-1 ${error.includes("성공") ? "text-emerald-400" : "text-red-400"}`}>
-                {error}
-              </p>
+              <div className="flex items-center gap-2">
+                <StampTag
+                  label={error.includes("성공") ? "확인" : "반려"}
+                  tone={error.includes("성공") ? "accept" : "reject"}
+                  size="sm"
+                  tilt={false}
+                />
+                <p className={`text-sm ${error.includes("성공") ? "text-[var(--accept)]" : "text-[var(--reject)]"}`}>
+                  {error}
+                </p>
+              </div>
             )}
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-gradient-to-r from-emerald-600 to-cyan-600 hover:from-emerald-500 hover:to-cyan-500 text-white rounded-xl font-medium transition-all shadow-lg shadow-emerald-900/30 disabled:opacity-60 disabled:cursor-not-allowed mt-2"
+              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[var(--seal)] hover:bg-[var(--seal-dim)] text-[var(--ink)] rounded-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2"
             >
               {loading ? (
-                <div className="w-5 h-5 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                <div className="w-5 h-5 rounded-full border-2 border-[var(--ink)]/30 border-t-[var(--ink)] animate-spin" />
               ) : (
                 <>
                   {mode === "login" ? <LogIn size={18} /> : <ArrowRight size={18} />}
@@ -185,7 +187,7 @@ export default function Home() {
           <div className="mt-6 text-center">
             <button
               onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(null); }}
-              className="text-sm text-slate-500 hover:text-emerald-400 transition-colors"
+              className="text-sm text-[var(--text-dim)] hover:text-[var(--seal)] transition-colors cursor-pointer"
             >
               {mode === "login" ? "계정이 없으신가요? 회원가입" : "이미 계정이 있으신가요? 로그인"}
             </button>

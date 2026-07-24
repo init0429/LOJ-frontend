@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Crown, Medal, Search, TrendingUp, Star } from "lucide-react";
+import { Search } from "lucide-react";
 import clsx from "clsx";
+import StampTag, { StampTone } from "@/components/StampTag";
 
 interface UserRank {
   rank: number;
@@ -25,116 +26,89 @@ const mockLeaderboard: UserRank[] = [
   { rank: 10, username: "hello_world", rating: 1200, solved: 50, tier: "Pupil" },
 ];
 
-const getTierColor = (tier: UserRank["tier"]) => {
+const getTierTone = (tier: UserRank["tier"]): StampTone => {
   switch (tier) {
-    case "Grandmaster": return "text-red-500 bg-red-500/10 border-red-500/20";
-    case "Master": return "text-yellow-500 bg-yellow-500/10 border-yellow-500/20";
-    case "Expert": return "text-purple-500 bg-purple-500/10 border-purple-500/20";
-    case "Specialist": return "text-cyan-500 bg-cyan-500/10 border-cyan-500/20";
-    case "Pupil": return "text-emerald-500 bg-emerald-500/10 border-emerald-500/20";
-    default: return "text-slate-400 bg-slate-800 border-slate-700";
+    case "Grandmaster": return "reject";
+    case "Master": return "pending";
+    case "Expert": return "neutral";
+    case "Specialist": return "neutral";
+    case "Pupil": return "accept";
+    default: return "neutral";
   }
-};
-
-const getMedalIcon = (rank: number) => {
-  if (rank === 1) return <Crown className="text-yellow-400 drop-shadow-[0_0_10px_rgba(250,204,21,0.8)]" size={28} />;
-  if (rank === 2) return <Medal className="text-slate-300 drop-shadow-[0_0_10px_rgba(203,213,225,0.8)]" size={26} />;
-  if (rank === 3) return <Medal className="text-amber-600 drop-shadow-[0_0_10px_rgba(217,119,6,0.8)]" size={24} />;
-  return <span className="text-slate-500 font-bold text-lg w-7 text-center">{rank}</span>;
 };
 
 export default function LeaderboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
-  const filtered = mockLeaderboard.filter(user => 
+  const filtered = mockLeaderboard.filter(user =>
     user.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
-    <div className="flex-1 py-12 px-4 sm:px-6 lg:px-8 bg-slate-950 min-h-[calc(100vh-64px)]">
+    <div className="flex-1 py-12 px-4 sm:px-6 lg:px-8 bg-[var(--ink)] min-h-[calc(100vh-64px)]">
       <div className="max-w-5xl mx-auto">
         {/* Header Section */}
-        <div className="mb-10 text-center">
-          <div className="inline-flex items-center justify-center p-3 bg-slate-900 rounded-2xl border border-slate-800 shadow-xl mb-4">
-            <TrendingUp className="text-emerald-400 mr-2" size={32} />
-            <h1 className="text-4xl font-extrabold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-              글로벌 리더보드
-            </h1>
-          </div>
-          <p className="text-slate-400 text-lg">최고의 코더들이 모인 명예의 전당입니다.</p>
+        <div className="mb-10 border-b border-[var(--rule)] pb-6">
+          <div className="docket-label text-[11px] text-[var(--text-faint)] mb-1">Register</div>
+          <h1 className="text-3xl font-semibold text-[var(--text)]">명부</h1>
+          <p className="text-[var(--text-dim)] mt-1">사건을 가장 많이 해결한 순서로 정리된 기록입니다.</p>
         </div>
 
         {/* Search Bar */}
-        <div className="mb-8 relative max-w-md mx-auto">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
-          <input 
-            type="text" 
-            placeholder="유저 검색..." 
+        <div className="mb-6 relative max-w-md">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-faint)]" size={18} />
+          <input
+            type="text"
+            placeholder="이름으로 조회"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full bg-slate-900 border border-slate-800 text-slate-200 px-12 py-4 rounded-xl focus:outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-lg text-lg"
+            className="w-full bg-[var(--paper)] border border-[var(--rule)] text-[var(--text)] pl-11 pr-4 py-3 rounded-sm focus:outline-none focus:border-[var(--seal)] transition-colors placeholder-[var(--text-faint)]"
           />
         </div>
 
         {/* Leaderboard Table */}
-        <div className="bg-slate-900/50 backdrop-blur-sm rounded-2xl border border-slate-800 overflow-hidden shadow-2xl">
+        <div className="bg-[var(--paper)] border border-[var(--rule)] overflow-hidden">
           <table className="w-full text-left border-collapse">
-            <thead className="bg-slate-900 border-b border-slate-800">
+            <thead className="bg-[var(--paper-raised)] border-b border-[var(--rule)] docket-label text-[10px] text-[var(--text-dim)]">
               <tr>
-                <th className="px-6 py-5 font-semibold text-slate-400 w-24 text-center">순위</th>
-                <th className="px-6 py-5 font-semibold text-slate-400">유저명</th>
-                <th className="px-6 py-5 font-semibold text-slate-400 w-32 text-center">레이팅</th>
-                <th className="px-6 py-5 font-semibold text-slate-400 w-32 text-center">해결한 문제</th>
-                <th className="px-6 py-5 font-semibold text-slate-400 w-40 text-center">티어</th>
+                <th className="px-6 py-4 w-20 text-center">순번</th>
+                <th className="px-6 py-4">이름</th>
+                <th className="px-6 py-4 w-32 text-center">평점</th>
+                <th className="px-6 py-4 w-32 text-center">해결 사건</th>
+                <th className="px-6 py-4 w-40 text-center">등급</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/50">
+            <tbody className="divide-y divide-[var(--rule)]">
               {filtered.map((user) => (
-                <tr 
-                  key={user.rank} 
+                <tr
+                  key={user.rank}
                   className={clsx(
-                    "group transition-colors hover:bg-slate-800/50",
-                    user.rank <= 3 ? "bg-slate-900/40" : ""
+                    "transition-colors hover:bg-[var(--paper-raised)] border-l-2",
+                    user.rank <= 3 ? "border-l-[var(--seal)]" : "border-l-transparent"
                   )}
                 >
-                  <td className="px-6 py-5 flex justify-center items-center h-full">
-                    {getMedalIcon(user.rank)}
+                  <td className="px-6 py-4 text-center docket-label text-[13px] text-[var(--text-dim)]">
+                    {String(user.rank).padStart(2, "0")}
                   </td>
-                  <td className="px-6 py-5">
-                    <div className="flex items-center gap-2">
-                      <span className={clsx(
-                        "font-bold text-lg",
-                        user.rank === 1 ? "text-yellow-400" :
-                        user.rank === 2 ? "text-slate-300" :
-                        user.rank === 3 ? "text-amber-600" :
-                        "text-slate-200 group-hover:text-white transition-colors"
-                      )}>
-                        {user.username}
-                      </span>
-                      {user.rank === 1 && <Star className="text-yellow-400 fill-yellow-400 ml-2" size={16} />}
-                    </div>
+                  <td className="px-6 py-4 font-medium text-[var(--text)]">
+                    {user.username}
                   </td>
-                  <td className="px-6 py-5 text-center font-mono text-lg font-semibold text-slate-300">
+                  <td className="px-6 py-4 text-center font-mono text-[var(--text)]">
                     {user.rating.toLocaleString()}
                   </td>
-                  <td className="px-6 py-5 text-center text-slate-400 font-mono">
+                  <td className="px-6 py-4 text-center font-mono text-[var(--text-dim)]">
                     {user.solved.toLocaleString()}
                   </td>
-                  <td className="px-6 py-5 text-center">
-                    <span className={clsx(
-                      "px-3 py-1 rounded-full text-xs font-bold border",
-                      getTierColor(user.tier)
-                    )}>
-                      {user.tier}
-                    </span>
+                  <td className="px-6 py-4 text-center">
+                    <StampTag label={user.tier} tone={getTierTone(user.tier)} size="sm" />
                   </td>
                 </tr>
               ))}
-              
+
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="py-20 text-center text-slate-500 text-lg">
-                    검색 결과가 없습니다.
+                  <td colSpan={5} className="py-20 text-center text-[var(--text-dim)]">
+                    조회된 이름이 없습니다.
                   </td>
                 </tr>
               )}
