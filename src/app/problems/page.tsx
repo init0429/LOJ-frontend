@@ -10,7 +10,7 @@ interface Problem {
   title: string;
   time_limit_ms: number;
   memory_limit_mb: number;
-  difficulty: number | null;
+  difficulty: number | null; // 1~5. DB에 아직 값이 없는 문제는 null일 수 있음
 }
 
 export default function ProblemsPage() {
@@ -20,14 +20,19 @@ export default function ProblemsPage() {
 
   const [stats, setStats] = useState<Record<number, { total: number; accepted: number }>>({});
 
+  const [solvedIds, setSolvedIds] = useState<Set<number>>(new Set());
+
   useEffect(() => {
     const fetchData = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+
       const [problemsRes, submissionsRes] = await Promise.all([
         supabase
           .from("problems")
           .select("id, title, time_limit_ms, memory_limit_mb, difficulty")
           .order("id", { ascending: true }),
-        supabase.from("submissions").select("problem_id, status")
+        // 인용률(정답률)은 전체 유저 기준 통계라 user_id로 안 거름
+        supabase.from("submissions").select("problem_id, status"),
       ]);
 
       if (problemsRes.error) {
@@ -50,12 +55,25 @@ export default function ProblemsPage() {
         setStats(newStats);
       }
 
+      // "해결" 체크 표시는 로그인한 본인 제출만 기준으로 삼아야 함
+      // (예전엔 user_id가 없어서 전체 유저 제출을 기준으로 계산했었음 — 버그)
+      if (session) {
+        const { data: mySubs } = await supabase
+          .from("submissions")
+          .select("problem_id")
+          .eq("user_id", session.user.id)
+          .eq("status", "Accepted");
+
+        setSolvedIds(new Set((mySubs || []).map((s) => s.problem_id)));
+      }
+
       setLoading(false);
     };
 
     fetchData();
   }, []);
 
+  // 난이도(형량 등급) 5단계 — DB의 difficulty(1~5) 값을 그대로 매핑
   const DIFFICULTY_META: Record<number, { label: string; color: string }> = {
     1: { label: "경범죄", color: "var(--sev-1)" },
     2: { label: "단순범죄", color: "var(--sev-2)" },
@@ -118,7 +136,7 @@ export default function ProblemsPage() {
               <tbody className="divide-y divide-[var(--rule)]">
                 {problems.map((problem) => {
                   const diff = getDifficulty(problem.difficulty);
-                  const isSolved = stats[problem.id]?.accepted > 0;
+                  const isSolved = solvedIds.has(problem.id);
 
                   return (
                     <tr

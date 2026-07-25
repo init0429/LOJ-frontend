@@ -91,6 +91,17 @@ export default function ProblemWorkspace() {
     }
   }, [activeLeftTab, problemId]);
 
+  // /submit, /test_run 둘 다 로그인한 유저인지 백엔드에서 검증해야 하므로
+  // Supabase 세션의 access_token을 Authorization 헤더로 실어보냄.
+  const authHeaders = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) throw new Error("로그인이 필요합니다.");
+    return {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session.access_token}`,
+    };
+  };
+
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setSubId(null);
@@ -100,7 +111,7 @@ export default function ProblemWorkspace() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const response = await fetch(`${apiUrl}/submit`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await authHeaders(),
         body: JSON.stringify({
           problem_id: parseInt(problemId, 10),
           language,
@@ -127,7 +138,7 @@ export default function ProblemWorkspace() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
       const response = await fetch(`${apiUrl}/test_run`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: await authHeaders(),
         body: JSON.stringify({
           problem_id: parseInt(problemId, 10),
           language,
@@ -141,6 +152,7 @@ export default function ProblemWorkspace() {
         throw new Error(data.message || "서버 통신 에러");
       }
 
+      // 결과 포맷팅 (콘솔 로그 형태, 전부 한글로 통일)
       const result = data.result;
       let output = `최종 결과: ${statusLabel(result.status)}\n\n`;
 
