@@ -1,32 +1,33 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 import { Search } from "lucide-react";
 import clsx from "clsx";
 import StampTag, { StampTone } from "@/components/StampTag";
 
+type Tier = "대법관" | "부장판사" | "검사" | "변호사" | "수습생";
+
 interface UserRank {
   rank: number;
+  user_id: string;
   username: string;
   rating: number;
   solved: number;
-  tier: "대법관" | "부장판사" | "검사" | "변호사" | "수습생";
+  tier: Tier;
 }
 
-const mockLeaderboard: UserRank[] = [
-  { rank: 1, username: "tourist_kr", rating: 3500, solved: 1250, tier: "대법관" },
-  { rank: 2, username: "algo_machine", rating: 3120, solved: 980, tier: "대법관" },
-  { rank: 3, username: "dp_master", rating: 2950, solved: 870, tier: "부장판사" },
-  { rank: 4, username: "graph_searcher", rating: 2800, solved: 750, tier: "부장판사" },
-  { rank: 5, username: "greedy_boy", rating: 2600, solved: 600, tier: "검사" },
-  { rank: 6, username: "brute_force99", rating: 2450, solved: 520, tier: "검사" },
-  { rank: 7, username: "math_genius", rating: 2200, solved: 480, tier: "변호사" },
-  { rank: 8, username: "string_lover", rating: 1950, solved: 410, tier: "변호사" },
-  { rank: 9, username: "coding_newbie", rating: 1500, solved: 150, tier: "수습생" },
-  { rank: 10, username: "hello_world", rating: 1200, solved: 50, tier: "수습생" },
-];
+// rating 구간별 사법부 직급. 문제 난이도(경범죄~흉악범죄, 100~500점) 기준으로
+// 대략 잡은 임계값이라 실제 운영해보고 문제 수/난이도 분포 보면서 조정하면 됨.
+const getTier = (rating: number): Tier => {
+  if (rating >= 2000) return "대법관";
+  if (rating >= 1000) return "부장판사";
+  if (rating >= 500) return "검사";
+  if (rating >= 100) return "변호사";
+  return "수습생";
+};
 
-const getTierTone = (tier: UserRank["tier"]): StampTone => {
+const getTierTone = (tier: Tier): StampTone => {
   switch (tier) {
     case "대법관": return "reject";
     case "부장판사": return "pending";
@@ -39,8 +40,38 @@ const getTierTone = (tier: UserRank["tier"]): StampTone => {
 
 export default function LeaderboardPage() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [rankings, setRankings] = useState<UserRank[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const filtered = mockLeaderboard.filter(user =>
+  useEffect(() => {
+    const fetchLeaderboard = async () => {
+      // leaderboard는 뷰: 유저별 distinct 해결 문제 수 + 난이도 기반 점수를 이미 계산해둠
+      const { data, error } = await supabase
+        .from("leaderboard")
+        .select("user_id, username, solved, rating")
+        .order("rating", { ascending: false });
+
+      if (error) {
+        console.error("명부 로딩 에러:", error);
+      } else if (data) {
+        setRankings(
+          data.map((row, i) => ({
+            rank: i + 1,
+            user_id: row.user_id,
+            username: row.username,
+            rating: row.rating ?? 0,
+            solved: row.solved ?? 0,
+            tier: getTier(row.rating ?? 0),
+          }))
+        );
+      }
+      setLoading(false);
+    };
+
+    fetchLeaderboard();
+  }, []);
+
+  const filtered = rankings.filter((user) =>
     user.username.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -67,54 +98,60 @@ export default function LeaderboardPage() {
         </div>
 
         {/* Leaderboard Table */}
-        <div className="bg-[var(--paper)] border border-[var(--rule)] overflow-hidden">
-          <table className="w-full text-left border-collapse">
-            <thead className="bg-[var(--paper-raised)] border-b border-[var(--rule)] docket-label text-[10px] text-[var(--text-dim)]">
-              <tr>
-                <th className="px-6 py-4 w-20 text-center">순번</th>
-                <th className="px-6 py-4">이름</th>
-                <th className="px-6 py-4 w-32 text-center">평점</th>
-                <th className="px-6 py-4 w-32 text-center">해결 사건</th>
-                <th className="px-6 py-4 w-40 text-center">등급</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[var(--rule)]">
-              {filtered.map((user) => (
-                <tr
-                  key={user.rank}
-                  className={clsx(
-                    "transition-colors hover:bg-[var(--paper-raised)] border-l-2",
-                    user.rank <= 3 ? "border-l-[var(--seal)]" : "border-l-transparent"
-                  )}
-                >
-                  <td className="px-6 py-4 text-center docket-label text-[13px] text-[var(--text-dim)]">
-                    {String(user.rank).padStart(2, "0")}
-                  </td>
-                  <td className="px-6 py-4 font-medium text-[var(--text)]">
-                    {user.username}
-                  </td>
-                  <td className="px-6 py-4 text-center font-mono text-[var(--text)]">
-                    {user.rating.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 text-center font-mono text-[var(--text-dim)]">
-                    {user.solved.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 text-center">
-                    <StampTag label={user.tier} tone={getTierTone(user.tier)} size="sm" />
-                  </td>
-                </tr>
-              ))}
-
-              {filtered.length === 0 && (
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[var(--seal)]"></div>
+          </div>
+        ) : (
+          <div className="bg-[var(--paper)] border border-[var(--rule)] overflow-hidden">
+            <table className="w-full text-left border-collapse">
+              <thead className="bg-[var(--paper-raised)] border-b border-[var(--rule)] docket-label text-[10px] text-[var(--text-dim)]">
                 <tr>
-                  <td colSpan={5} className="py-20 text-center text-[var(--text-dim)]">
-                    조회된 이름이 없습니다.
-                  </td>
+                  <th className="px-6 py-4 w-20 text-center">순번</th>
+                  <th className="px-6 py-4">이름</th>
+                  <th className="px-6 py-4 w-32 text-center">평점</th>
+                  <th className="px-6 py-4 w-32 text-center">해결 사건</th>
+                  <th className="px-6 py-4 w-40 text-center">등급</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-[var(--rule)]">
+                {filtered.map((user) => (
+                  <tr
+                    key={user.user_id}
+                    className={clsx(
+                      "transition-colors hover:bg-[var(--paper-raised)] border-l-2",
+                      user.rank <= 3 ? "border-l-[var(--seal)]" : "border-l-transparent"
+                    )}
+                  >
+                    <td className="px-6 py-4 text-center docket-label text-[13px] text-[var(--text-dim)]">
+                      {String(user.rank).padStart(2, "0")}
+                    </td>
+                    <td className="px-6 py-4 font-medium text-[var(--text)]">
+                      {user.username}
+                    </td>
+                    <td className="px-6 py-4 text-center font-mono text-[var(--text)]">
+                      {user.rating.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 text-center font-mono text-[var(--text-dim)]">
+                      {user.solved.toLocaleString()}
+                    </td>
+                    <td className="px-6 py-4 text-center">
+                      <StampTag label={user.tier} tone={getTierTone(user.tier)} size="sm" />
+                    </td>
+                  </tr>
+                ))}
+
+                {filtered.length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="py-20 text-center text-[var(--text-dim)]">
+                      조회된 이름이 없습니다.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

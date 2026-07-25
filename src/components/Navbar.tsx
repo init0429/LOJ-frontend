@@ -15,17 +15,26 @@ const NAV_ITEMS = [
 
 export default function Navbar() {
   const [session, setSession] = useState<any>(null);
+  const [username, setUsername] = useState<string | null>(null);
   const pathname = usePathname();
 
   useEffect(() => {
+    const loadProfile = async (userId: string) => {
+      const { data } = await supabase.from("profiles").select("username").eq("id", userId).single();
+      setUsername(data?.username ?? null);
+    };
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
+      if (session) loadProfile(session.user.id);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
+      if (session) loadProfile(session.user.id);
+      else setUsername(null);
     });
 
     return () => subscription.unsubscribe();
@@ -35,6 +44,7 @@ export default function Navbar() {
     await supabase.auth.signOut();
   };
 
+  // 문제 풀이 화면에서는 전용 헤더를 사용하므로 기본 Navbar 숨김
   if (pathname?.startsWith("/problems/")) {
     return null;
   }
@@ -74,7 +84,7 @@ export default function Navbar() {
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-[var(--text-dim)] bg-[var(--paper-raised)] border border-[var(--rule)] px-3 py-1.5 rounded-sm">
               <User size={14} className="text-[var(--seal)]" />
-              <span className="docket-label text-[11px]">{session.user.email?.split("@")[0]}</span>
+              <span className="docket-label text-[11px]">{username ?? session.user.email?.split("@")[0]}</span>
             </div>
             <button
               onClick={handleLogout}
