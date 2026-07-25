@@ -19,6 +19,12 @@
     --reject: #b23a32;
     --reject-dim: #8c2e28;
     --pending: #b8860b;
+
+    --sev-1: #4c9a5b;
+    --sev-2: #8a9a3a;
+    --sev-3: #b8860b;
+    --sev-4: #c2632f;
+    --sev-5: #b23a32;
 }
 
 html,

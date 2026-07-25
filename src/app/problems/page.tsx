@@ -4,13 +4,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { CheckSquare, Square } from "lucide-react";
-import clsx from "clsx";
 
 interface Problem {
   id: number;
   title: string;
   time_limit_ms: number;
   memory_limit_mb: number;
+  difficulty: number | null;
 }
 
 export default function ProblemsPage() {
@@ -25,7 +25,7 @@ export default function ProblemsPage() {
       const [problemsRes, submissionsRes] = await Promise.all([
         supabase
           .from("problems")
-          .select("id, title, time_limit_ms, memory_limit_mb")
+          .select("id, title, time_limit_ms, memory_limit_mb, difficulty")
           .order("id", { ascending: true }),
         supabase.from("submissions").select("problem_id, status")
       ]);
@@ -56,10 +56,19 @@ export default function ProblemsPage() {
     fetchData();
   }, []);
 
-  const getDifficulty = (id: number) => {
-    if (id % 3 === 0) return { label: "중대", color: "text-[var(--reject)]" };
-    if (id % 2 === 0) return { label: "보통", color: "text-[var(--pending)]" };
-    return { label: "경미", color: "text-[var(--accept)]" };
+  const DIFFICULTY_META: Record<number, { label: string; color: string }> = {
+    1: { label: "경범죄", color: "var(--sev-1)" },
+    2: { label: "단순범죄", color: "var(--sev-2)" },
+    3: { label: "일반범죄", color: "var(--sev-3)" },
+    4: { label: "중범죄", color: "var(--sev-4)" },
+    5: { label: "흉악범죄", color: "var(--sev-5)" },
+  };
+
+  const getDifficulty = (difficulty: number | null) => {
+    if (!difficulty || !DIFFICULTY_META[difficulty]) {
+      return { label: "미분류", color: "var(--text-faint)" };
+    }
+    return DIFFICULTY_META[difficulty];
   };
 
   const getAcceptance = (id: number) => {
@@ -108,7 +117,7 @@ export default function ProblemsPage() {
               </thead>
               <tbody className="divide-y divide-[var(--rule)]">
                 {problems.map((problem) => {
-                  const diff = getDifficulty(problem.id);
+                  const diff = getDifficulty(problem.difficulty);
                   const isSolved = stats[problem.id]?.accepted > 0;
 
                   return (
@@ -129,8 +138,14 @@ export default function ProblemsPage() {
                         {problem.title}
                       </td>
                       <td className="px-6 py-4 font-mono text-[var(--text-dim)]">{getAcceptance(problem.id)}</td>
-                      <td className={clsx("px-6 py-4 docket-label text-[11px]", diff.color)}>
-                        {diff.label}
+                      <td className="px-6 py-4 docket-label text-[11px]">
+                        <span className="inline-flex items-center gap-1.5" style={{ color: diff.color }}>
+                          <span
+                            className="inline-block w-1.5 h-1.5 rounded-full"
+                            style={{ backgroundColor: diff.color }}
+                          />
+                          {diff.label}
+                        </span>
                       </td>
                     </tr>
                   );
