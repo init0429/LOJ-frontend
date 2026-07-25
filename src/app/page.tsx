@@ -3,53 +3,50 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
-import { LogIn, ArrowRight, Scale } from "lucide-react";
+import { Scale } from "lucide-react";
 import { motion } from "framer-motion";
 import StampTag from "@/components/StampTag";
 
+const SCHOOL_DOMAIN = "bssm.hs.kr";
+
 export default function Home() {
-  const [session, setSession] = useState<any>(null);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [mode, setMode] = useState<"login" | "signup">("login");
   const router = useRouter();
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      // 로그인 상태면 즉시 문제 목록으로 리다이렉트
       if (session) router.replace("/problems");
-      else setSession(session);
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) router.replace("/problems");
-      else setSession(session);
     });
 
     return () => subscription.unsubscribe();
   }, [router]);
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
-    const { error } = await supabase.auth.signUp({ email, password });
-    if (error) setError(error.message);
-    else setError("가입 성공! 이메일을 확인해 주세요. (이메일 인증을 끈 경우엔 바로 로그인 가능합니다)");
-    setLoading(false);
-  };
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) setError(error.message);
-    setLoading(false);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: window.location.origin,
+        // hd(hosted domain)는 구글 계정 선택 화면에서 bssm.hs.kr 계정만
+        // 보여주는 UI 힌트일 뿐, 진짜 검증은 DB 트리거(handle_new_user)에서 함.
+        queryParams: { hd: SCHOOL_DOMAIN },
+      },
+    });
+
+    if (error) {
+      setError(error.message);
+      setLoading(false);
+    }
+    // 성공 시 구글 로그인 페이지로 리다이렉트되므로 별도 처리 없음
   };
 
   const docket = [
@@ -103,13 +100,13 @@ export default function Home() {
         </motion.div>
       </div>
 
-      {/* Right: Auth Form */}
+      {/* Right: Auth */}
       <div className="flex-1 flex items-center justify-center p-6 lg:p-16 bg-[var(--ink)]">
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4 }}
-          className="w-full max-w-md"
+          className="w-full max-w-sm"
         >
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center justify-center gap-2 mb-8">
@@ -117,81 +114,46 @@ export default function Home() {
             <span className="docket-label text-lg tracking-[0.2em]">LOJ</span>
           </div>
 
-          <div className="docket-label text-[11px] text-[var(--text-faint)] mb-2">
-            {mode === "login" ? "로그인" : "회원가입"}
+          <div className="docket-label text-[11px] text-[var(--text-faint)] mb-2 text-center">
+            본인 확인
           </div>
-          <h2 className="text-2xl font-semibold text-[var(--text)] mb-1">
-            {mode === "login" ? "다시 오셨군요" : "계정 만들기"}
+          <h2 className="text-2xl font-semibold text-[var(--text)] mb-1 text-center">
+            출석하기
           </h2>
-          <p className="text-[var(--text-dim)] text-sm mb-8">
-            {mode === "login"
-              ? "이메일과 비밀번호로 로그인하세요"
-              : "이메일로 간단하게 가입할 수 있어요"}
+          <p className="text-[var(--text-dim)] text-sm mb-8 text-center">
+            학교 계정({SCHOOL_DOMAIN})으로만 출입할 수 있습니다
           </p>
 
-          <form onSubmit={mode === "login" ? handleLogin : handleSignUp} className="flex flex-col gap-4">
-            <div>
-              <label className="docket-label block text-[11px] text-[var(--text-dim)] mb-1.5">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="w-full px-4 py-3 bg-[var(--paper)] border border-[var(--rule)] rounded-sm focus:outline-none focus:border-[var(--seal)] text-[var(--text)] placeholder-[var(--text-faint)] transition-colors"
-                placeholder="you@example.com"
-              />
-            </div>
-            <div>
-              <label className="docket-label block text-[11px] text-[var(--text-dim)] mb-1.5">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-                className="w-full px-4 py-3 bg-[var(--paper)] border border-[var(--rule)] rounded-sm focus:outline-none focus:border-[var(--seal)] text-[var(--text)] placeholder-[var(--text-faint)] transition-colors"
-                placeholder="••••••••"
-              />
-            </div>
-
-            {error && (
-              <div className="flex items-center gap-2">
-                <StampTag
-                  label={error.includes("성공") ? "확인" : "반려"}
-                  tone={error.includes("성공") ? "accept" : "reject"}
-                  size="sm"
-                  tilt={false}
-                />
-                <p className={`text-sm ${error.includes("성공") ? "text-[var(--accept)]" : "text-[var(--reject)]"}`}>
-                  {error}
-                </p>
-              </div>
+          <button
+            onClick={handleGoogleLogin}
+            disabled={loading}
+            className="w-full flex items-center justify-center gap-3 py-3 px-4 bg-[var(--paper)] hover:bg-[var(--paper-raised)] border border-[var(--rule)] hover:border-[var(--rule-strong)] rounded-sm font-medium transition-colors disabled:opacity-60 disabled:cursor-not-allowed text-[var(--text)]"
+          >
+            {loading ? (
+              <div className="w-5 h-5 rounded-full border-2 border-[var(--text-faint)]/30 border-t-[var(--text)] animate-spin" />
+            ) : (
+              <>
+                <svg width="18" height="18" viewBox="0 0 48 48">
+                  <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3c-1.6 4.6-6 8-11.3 8-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3 12.4 3 3 12.4 3 24s9.4 21 21 21 21-9.4 21-21c0-1.4-.1-2.7-.4-3.5z" />
+                  <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.6 15.9 19 13 24 13c3.1 0 5.8 1.1 8 3l6-6C34.5 5.1 29.5 3 24 3c-7.5 0-13.9 4.3-17.7 10.7z" />
+                  <path fill="#4CAF50" d="M24 45c5.4 0 10.3-2.1 14-5.5l-6.5-5.5c-2 1.4-4.6 2.3-7.5 2.3-5.3 0-9.7-3.4-11.3-8.1l-6.6 5.1C9.9 40.5 16.4 45 24 45z" />
+                  <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.3-2.2 4.2-4 5.6l6.5 5.5c-.5.4 7.2-5.3 7.2-15.6 0-1.4-.1-2.7-.4-3.5z" />
+                </svg>
+                Google 계정으로 계속하기
+              </>
             )}
+          </button>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full flex items-center justify-center gap-2 py-3 px-4 bg-[var(--seal)] hover:bg-[var(--seal-dim)] text-[var(--ink)] rounded-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed mt-2"
-            >
-              {loading ? (
-                <div className="w-5 h-5 rounded-full border-2 border-[var(--ink)]/30 border-t-[var(--ink)] animate-spin" />
-              ) : (
-                <>
-                  {mode === "login" ? <LogIn size={18} /> : <ArrowRight size={18} />}
-                  {mode === "login" ? "로그인" : "회원가입"}
-                </>
-              )}
-            </button>
-          </form>
+          {error && (
+            <div className="flex items-center gap-2 mt-4 justify-center">
+              <StampTag label="반려" tone="reject" size="sm" tilt={false} />
+              <p className="text-sm text-[var(--reject)]">{error}</p>
+            </div>
+          )}
 
-          <div className="mt-6 text-center">
-            <button
-              onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(null); }}
-              className="text-sm text-[var(--text-dim)] hover:text-[var(--seal)] transition-colors"
-            >
-              {mode === "login" ? "계정이 없으신가요? 회원가입" : "이미 계정이 있으신가요? 로그인"}
-            </button>
-          </div>
+          <p className="text-[var(--text-faint)] text-xs text-center mt-8">
+            @{SCHOOL_DOMAIN} 계정이 아니면 가입이 자동으로 거부됩니다
+          </p>
         </motion.div>
       </div>
     </div>
