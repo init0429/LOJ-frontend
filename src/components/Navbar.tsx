@@ -16,12 +16,14 @@ const NAV_ITEMS = [
 export default function Navbar() {
   const [session, setSession] = useState<any>(null);
   const [username, setUsername] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
     const loadProfile = async (userId: string) => {
-      const { data } = await supabase.from("profiles").select("username").eq("id", userId).single();
+      const { data } = await supabase.from("profiles").select("username, is_admin").eq("id", userId).single();
       setUsername(data?.username ?? null);
+      setIsAdmin(!!data?.is_admin);
     };
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -34,7 +36,10 @@ export default function Navbar() {
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       if (session) loadProfile(session.user.id);
-      else setUsername(null);
+      else {
+        setUsername(null);
+        setIsAdmin(false);
+      }
     });
 
     return () => subscription.unsubscribe();
@@ -44,6 +49,7 @@ export default function Navbar() {
     await supabase.auth.signOut();
   };
 
+  // 문제 풀이 화면 / 콘테스트 진행 화면은 전용 헤더(또는 락다운 UI)를 쓰므로 기본 Navbar 숨김
   if (pathname?.startsWith("/problems/") || pathname?.startsWith("/contests/")) {
     return null;
   }
@@ -75,6 +81,19 @@ export default function Navbar() {
               </Link>
             );
           })}
+          {isAdmin && (
+            <Link
+              href="/admin/contests"
+              className={clsx(
+                "docket-label text-[11px] px-4 py-2 border-b-2 transition-colors",
+                pathname.startsWith("/admin")
+                  ? "border-[var(--seal)] text-[var(--seal)]"
+                  : "border-transparent text-[var(--text-faint)] hover:text-[var(--text)] hover:border-[var(--rule-strong)]"
+              )}
+            >
+              관리
+            </Link>
+          )}
         </div>
       </div>
 

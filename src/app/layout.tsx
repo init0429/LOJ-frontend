@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "LOJ",
+  title: "LOJ — 사건기록부",
   description: "제출한 코드는 심사를 거쳐 도장 찍힌 판결로 돌아옵니다.",
 };
 
