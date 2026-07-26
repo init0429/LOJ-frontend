@@ -10,14 +10,17 @@ import clsx from "clsx";
 import Link from "next/link";
 import ProblemContent from "@/components/ProblemContent";
 import StampTag, { StampTone, statusLabel } from "@/components/StampTag";
+import { MONACO_LANGUAGE } from "@/lib/languages";
 
 const STARTER_CODE: Record<string, string> = {
     python: "# 여기에 코드를 작성하세요.\n",
+    c: "#include <stdio.h>\n\nint main(void) {\n    // 여기에 코드를 작성하세요.\n    return 0;\n}\n",
     cpp: "#include <iostream>\nusing namespace std;\n\nint main() {\n    // 여기에 코드를 작성하세요.\n    return 0;\n}\n",
     java: "public class Main {\n    public static void main(String[] args) {\n        // 여기에 코드를 작성하세요.\n    }\n}\n",
+    sql: "-- 여기에 쿼리를 작성하세요.\nSELECT 1;\n",
 };
 
-const MONACO_LANGUAGE: Record<string, string> = { python: "python", cpp: "cpp", java: "java" };
+
 
 const statusTone = (status: string): StampTone => {
     if (status === "Accepted") return "accept";
@@ -358,8 +361,10 @@ export default function ContestWorkspace() {
                             className="bg-[var(--rule)] text-[var(--text)] text-xs font-medium border border-[var(--rule-strong)] rounded-sm px-3 py-1.5 focus:outline-none focus:border-[var(--seal)]"
                         >
                             <option value="python">Python 3</option>
+                            <option value="c">C</option>
                             <option value="cpp">C++</option>
                             <option value="java">Java</option>
+                            <option value="sql">SQL</option>
                         </select>
                         <div className="flex gap-2">
                             <button

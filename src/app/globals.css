@@ -1,11 +1,5 @@
 @import "tailwindcss";
 
-/*
-  === LOJ 디자인 토큰 ===
-  컨셉: 사건 기록부(docket). 문제 = 사건, 채점 결과 = 도장 찍힌 판결.
-  브랜드 액센트는 --seal 하나만 쓰고, 판결 색상(accept/reject/pending)은
-  의미 전달용으로 별도 관리한다. 그라디언트 텍스트/글로우 이펙트는 쓰지 않는다.
-*/
 :root {
     --ink: #0a0a0b;
     --paper: #151517;
@@ -26,7 +20,6 @@
     --reject-dim: #8c2e28;
     --pending: #b8860b;
 
-    /* 문제 난이도(형량 등급) 5단계 — 경범죄(쉬움) ~ 흉악범죄(어려움) */
     --sev-1: #4c9a5b;
     --sev-2: #8a9a3a;
     --sev-3: #b8860b;
@@ -40,9 +33,6 @@ body {
     color: var(--text);
 }
 
-/* Tailwind Preflight가 button 기본 cursor를 default로 되돌려놔서
-   버튼/링크/탭처럼 클릭 가능한 요소는 여기서 한 번에 pointer로 잡는다.
-   (매 버튼마다 cursor-pointer 클래스 붙이는 것보다 유지보수가 쉬움) */
 button:not(:disabled),
 [role="button"],
 a[href],
@@ -55,7 +45,6 @@ button:disabled {
     cursor: not-allowed;
 }
 
-/* 사건번호/라벨/헤더용 모노스페이스 라벨 스타일 */
 .docket-label {
     font-family: var(--font-geist-mono), monospace;
     text-transform: uppercase;
@@ -63,8 +52,6 @@ button:disabled {
     font-weight: 600;
 }
 
-/* 시그니처 요소: 도장(stamp) 질감. 아주 옅은 그레인만 살짝 얹는다.
-   (blend-mode를 강하게 쓰면 작은 텍스트 위에서 얼룩덜룩해 보여서 톤을 낮춤) */
 .stamp-texture {
     background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='60' height='60'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix type='saturate' values='0'/></filter><rect width='100%25' height='100%25' filter='url(%23n)' opacity='0.12'/></svg>");
 }

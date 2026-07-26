@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { CheckSquare, Square } from "lucide-react";
+import { getDifficultyMeta } from "@/lib/difficulty";
 
 interface Problem {
   id: number;
@@ -21,6 +22,7 @@ export default function ProblemsPage() {
   const [stats, setStats] = useState<Record<number, { total: number; accepted: number }>>({});
 
   const [solvedIds, setSolvedIds] = useState<Set<number>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
@@ -73,21 +75,7 @@ export default function ProblemsPage() {
     fetchData();
   }, []);
 
-  // 난이도(형량 등급) 5단계 — DB의 difficulty(1~5) 값을 그대로 매핑
-  const DIFFICULTY_META: Record<number, { label: string; color: string }> = {
-    1: { label: "경범죄", color: "var(--sev-1)" },
-    2: { label: "단순범죄", color: "var(--sev-2)" },
-    3: { label: "일반범죄", color: "var(--sev-3)" },
-    4: { label: "중범죄", color: "var(--sev-4)" },
-    5: { label: "흉악범죄", color: "var(--sev-5)" },
-  };
-
-  const getDifficulty = (difficulty: number | null) => {
-    if (!difficulty || !DIFFICULTY_META[difficulty]) {
-      return { label: "미분류", color: "var(--text-faint)" };
-    }
-    return DIFFICULTY_META[difficulty];
-  };
+  // 난이도(형량 등급) 매핑은 src/lib/difficulty.ts 공용 유틸로 뺐음 (getDifficultyMeta)
 
   const getAcceptance = (id: number) => {
     const stat = stats[id];
@@ -96,6 +84,16 @@ export default function ProblemsPage() {
   };
 
   const caseNo = (id: number) => `№ ${String(id).padStart(3, "0")}`;
+
+  const filteredProblems = problems.filter((p) => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return true;
+    return (
+      p.title.toLowerCase().includes(q) ||
+      String(p.id).includes(q) ||
+      caseNo(p.id).toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="flex-1 py-12 px-4 sm:px-6 lg:px-8 bg-[var(--ink)]">
@@ -108,6 +106,8 @@ export default function ProblemsPage() {
           <div className="flex gap-2">
             <input
               type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="사건번호 · 제목 검색"
               className="px-4 py-2 bg-[var(--paper)] border border-[var(--rule)] rounded-sm focus:outline-none focus:border-[var(--seal)] text-sm text-[var(--text)] placeholder-[var(--text-faint)]"
             />
@@ -134,8 +134,8 @@ export default function ProblemsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-[var(--rule)]">
-                {problems.map((problem) => {
-                  const diff = getDifficulty(problem.difficulty);
+                {filteredProblems.map((problem) => {
+                  const diff = getDifficultyMeta(problem.difficulty);
                   const isSolved = solvedIds.has(problem.id);
 
                   return (
@@ -171,9 +171,9 @@ export default function ProblemsPage() {
               </tbody>
             </table>
 
-            {problems.length === 0 && (
+            {filteredProblems.length === 0 && (
               <div className="text-center py-20 text-[var(--text-dim)]">
-                접수된 사건이 없습니다.
+                {searchQuery ? "검색 결과가 없습니다." : "접수된 사건이 없습니다."}
               </div>
             )}
           </div>

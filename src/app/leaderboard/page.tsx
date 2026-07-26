@@ -17,12 +17,10 @@ interface UserRank {
   tier: Tier;
 }
 
-// rating 구간별 사법부 직급. 문제 난이도(경범죄~흉악범죄, 100~500점) 기준으로
-// 대략 잡은 임계값이라 실제 운영해보고 문제 수/난이도 분포 보면서 조정하면 됨.
 const getTier = (rating: number): Tier => {
-  if (rating >= 2000) return "대법관";
-  if (rating >= 1000) return "부장판사";
-  if (rating >= 500) return "검사";
+  if (rating >= 10000) return "대법관";
+  if (rating >= 5000) return "부장판사";
+  if (rating >= 1000) return "검사";
   if (rating >= 100) return "변호사";
   return "수습생";
 };

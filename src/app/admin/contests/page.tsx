@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Check } from "lucide-react";
 import clsx from "clsx";
 import StampTag from "@/components/StampTag";
@@ -242,9 +243,17 @@ export default function AdminContestsPage() {
                         {existing.map((c) => (
                             <div key={c.id} className="px-4 py-3 flex items-center justify-between text-sm">
                                 <span className="text-[var(--text)]">{c.title}</span>
-                                <span className="text-[var(--text-dim)] text-xs">
-                                    {new Date(c.start_time).toLocaleString()} ~ {new Date(c.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                                </span>
+                                <div className="flex items-center gap-4">
+                                    <span className="text-[var(--text-dim)] text-xs">
+                                        {new Date(c.start_time).toLocaleString()} ~ {new Date(c.end_time).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                                    </span>
+                                    <Link
+                                        href={`/admin/contests/${c.id}/results`}
+                                        className="docket-label text-[10px] text-[var(--seal)] hover:text-[var(--seal-dim)] transition-colors whitespace-nowrap"
+                                    >
+                                        결과 보기
+                                    </Link>
+                                </div>
                             </div>
                         ))}
                         {existing.length === 0 && (

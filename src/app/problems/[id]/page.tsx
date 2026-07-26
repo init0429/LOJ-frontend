@@ -10,24 +10,24 @@ import clsx from "clsx";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import ProblemContent from "@/components/ProblemContent";
 import StampTag, { StampTone, statusLabel } from "@/components/StampTag";
+import { getDifficultyMeta } from "@/lib/difficulty";
+import { MONACO_LANGUAGE } from "@/lib/languages";
 
 // backend의 SupportedLanguage / judge의 LANGUAGES와 동기화해서 유지할 것.
 const STARTER_CODE: Record<string, string> = {
   python: "# 여기에 코드를 작성하세요.\n",
+  c:
+    "#include <stdio.h>\n\nint main(void) {\n    // 여기에 코드를 작성하세요.\n    return 0;\n}\n",
   cpp:
     "#include <iostream>\nusing namespace std;\n\nint main() {\n    // 여기에 코드를 작성하세요.\n    return 0;\n}\n",
   java:
     "public class Main {\n    public static void main(String[] args) {\n        // 여기에 코드를 작성하세요.\n    }\n}\n",
+  // SQL 전용 문제 UI는 아직 없어서, 지금은 테스트케이스의 입력이 스키마/시드
+  // 데이터(셋업 스크립트), 여기 작성하는 코드는 쿼리 하나로 취급
+  sql: "-- 여기에 쿼리를 작성하세요.\nSELECT 1;\n",
 };
 
-// Monaco 에디터 문법 하이라이팅용 언어 식별자.
-const MONACO_LANGUAGE: Record<string, string> = {
-  python: "python",
-  cpp: "cpp",
-  java: "java",
-};
-
-// 채점 상태 문자열을 도장 색상으로 매핑.
+// 채점 상태 문자열을 도장 색상으로 매핑
 const statusTone = (status: string): StampTone => {
   if (status === "Accepted") return "accept";
   if (status === "Pending" || status === "Running") return "pending";
@@ -241,7 +241,12 @@ export default function ProblemWorkspace() {
                 <div className="prose prose-invert max-w-none">
                   <h2 className="text-2xl font-bold mb-4">{problem.title}</h2>
                   <div className="flex gap-3 mb-6 text-xs font-medium flex-wrap">
-                    <span className="bg-[var(--seal)]/10 text-[var(--seal)] px-2 py-1 rounded border border-[var(--seal)]/20">Easy</span>
+                    <span
+                      className="docket-label px-2 py-1 border"
+                      style={{ color: getDifficultyMeta(problem.difficulty).color, borderColor: getDifficultyMeta(problem.difficulty).color, backgroundColor: `color-mix(in srgb, ${getDifficultyMeta(problem.difficulty).color} 10%, transparent)` }}
+                    >
+                      {getDifficultyMeta(problem.difficulty).label}
+                    </span>
                     <span className="bg-[var(--rule)] text-[var(--text)] px-2 py-1 rounded border border-[var(--rule-strong)]">시간: {problem.time_limit_ms}ms</span>
                     <span className="bg-[var(--rule)] text-[var(--text)] px-2 py-1 rounded border border-[var(--rule-strong)]">메모리: {problem.memory_limit_mb}MB</span>
                   </div>
@@ -341,9 +346,10 @@ export default function ProblemWorkspace() {
                     className="bg-[var(--rule)] text-[var(--text)] text-xs font-medium border border-[var(--rule-strong)] rounded-md px-3 py-1.5 focus:outline-none focus:border-[var(--seal)] hover:bg-[var(--rule-strong)] transition-colors cursor-pointer"
                   >
                     <option value="python">Python 3</option>
+                    <option value="c">C</option>
                     <option value="cpp">C++</option>
                     <option value="java">Java</option>
-                    <option value="node" disabled>Node.js (준비 중)</option>
+                    <option value="sql">SQL</option>
                   </select>
                 </div>
 
