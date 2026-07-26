@@ -44,8 +44,7 @@ export default function Navbar() {
     await supabase.auth.signOut();
   };
 
-  // 문제 풀이 화면에서는 전용 헤더를 사용하므로 기본 Navbar 숨김
-  if (pathname?.startsWith("/problems/")) {
+  if (pathname?.startsWith("/problems/") || pathname?.startsWith("/contests/")) {
     return null;
   }
 
