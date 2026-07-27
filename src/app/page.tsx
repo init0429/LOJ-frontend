@@ -85,7 +85,7 @@ export default function Home() {
                 LOJ
               </h1>
               <p className="text-(--text-dim) text-xs docket-label tracking-[0.16em] mt-0.5">
-                Local Online Judge — 사건기록부
+                Lize Online Judge — 사건기록부
               </p>
             </div>
           </div>
