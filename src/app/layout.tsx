@@ -18,7 +18,7 @@ export const metadata: Metadata = {
   description: "제출한 코드는 심사를 거쳐 도장 찍힌 판결로 돌아옵니다.",
   icons: {
     icon: "favicon.ico",
-  }
+  },
 };
 
 export default function RootLayout({
@@ -30,11 +30,9 @@ export default function RootLayout({
     <html
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
-      <body className="min-h-full flex flex-col bg-[var(--ink)] text-[var(--text)]">
+      <body className="min-h-full flex flex-col bg-(--ink) text-(--text)">
         <Navbar />
-        <main className="flex-1 flex flex-col">
-          {children}
-        </main>
+        <main className="flex-1 flex flex-col">{children}</main>
       </body>
     </html>
   );

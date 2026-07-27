@@ -28,7 +28,16 @@ export function useSubmissionState(subId: string | null) {
 
       if (data) {
         setStatus(data.status);
-        if (["Accepted", "Wrong Answer", "Time Limit Exceeded", "Runtime Error", "Compile Error", "System Error"].includes(data.status)) {
+        if (
+          [
+            "Accepted",
+            "Wrong Answer",
+            "Time Limit Exceeded",
+            "Runtime Error",
+            "Compile Error",
+            "System Error",
+          ].includes(data.status)
+        ) {
           isSubscribed = false;
         }
       }

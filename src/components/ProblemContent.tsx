@@ -15,7 +15,10 @@ interface ProblemContentProps {
  * - 인라인 수식: $...$
  * - 블록 수식: $$...$$
  */
-export default function ProblemContent({ content, className = "" }: ProblemContentProps) {
+export default function ProblemContent({
+  content,
+  className = "",
+}: ProblemContentProps) {
   return (
     <div
       className={`prose prose-invert max-w-none
@@ -26,10 +29,7 @@ export default function ProblemContent({ content, className = "" }: ProblemConte
         prose-strong:text-slate-100
         ${className}`}
     >
-      <ReactMarkdown
-        remarkPlugins={[remarkMath]}
-        rehypePlugins={[rehypeKatex]}
-      >
+      <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
         {content}
       </ReactMarkdown>
     </div>

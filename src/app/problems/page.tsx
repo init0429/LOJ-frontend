@@ -19,14 +19,18 @@ export default function ProblemsPage() {
   const [loading, setLoading] = useState(true);
   const router = useRouter();
 
-  const [stats, setStats] = useState<Record<number, { total: number; accepted: number }>>({});
+  const [stats, setStats] = useState<
+    Record<number, { total: number; accepted: number }>
+  >({});
 
   const [solvedIds, setSolvedIds] = useState<Set<number>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const fetchData = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
       const [problemsRes, submissionsRes] = await Promise.all([
         supabase
@@ -44,7 +48,8 @@ export default function ProblemsPage() {
       }
 
       if (submissionsRes.data) {
-        const newStats: Record<number, { total: number; accepted: number }> = {};
+        const newStats: Record<number, { total: number; accepted: number }> =
+          {};
         submissionsRes.data.forEach((sub) => {
           if (!newStats[sub.problem_id]) {
             newStats[sub.problem_id] = { total: 0, accepted: 0 };
@@ -96,12 +101,16 @@ export default function ProblemsPage() {
   });
 
   return (
-    <div className="flex-1 py-12 px-4 sm:px-6 lg:px-8 bg-[var(--ink)]">
+    <div className="flex-1 py-12 px-4 sm:px-6 lg:px-8 bg-(--ink)">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8 flex items-end justify-between border-b border-[var(--rule)] pb-4">
+        <div className="mb-8 flex items-end justify-between border-b border-(--rule) pb-4">
           <div>
-            <div className="docket-label text-[11px] text-[var(--text-faint)] mb-1">Docket</div>
-            <h1 className="text-3xl font-semibold text-[var(--text)]">사건 목록</h1>
+            <div className="docket-label text-[11px] text-(--text-faint) mb-1">
+              Docket
+            </div>
+            <h1 className="text-3xl font-semibold text-(--text)">
+              사건 목록
+            </h1>
           </div>
           <div className="flex gap-2">
             <input
@@ -109,9 +118,9 @@ export default function ProblemsPage() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="사건번호 · 제목 검색"
-              className="px-4 py-2 bg-[var(--paper)] border border-[var(--rule)] rounded-sm focus:outline-none focus:border-[var(--seal)] text-sm text-[var(--text)] placeholder-[var(--text-faint)]"
+              className="px-4 py-2 bg-(--paper) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-sm text-(--text) placeholder-(--text-faint)"
             />
-            <button className="docket-label text-[11px] px-4 py-2 bg-[var(--paper)] hover:bg-[var(--paper-raised)] border border-[var(--rule)] rounded-sm transition-colors text-[var(--text-dim)]">
+            <button className="docket-label text-[11px] px-4 py-2 bg-(--paper) hover:bg-(--paper-raised) border border-(--rule) rounded-sm transition-colors text-(--text-dim)">
               필터
             </button>
           </div>
@@ -119,12 +128,12 @@ export default function ProblemsPage() {
 
         {loading ? (
           <div className="flex justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[var(--seal)]"></div>
+            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-(--seal)"></div>
           </div>
         ) : (
-          <div className="bg-[var(--paper)] border border-[var(--rule)] overflow-hidden">
-            <table className="w-full text-left text-sm text-[var(--text)]">
-              <thead className="bg-[var(--paper-raised)] docket-label text-[10px] text-[var(--text-dim)] border-b border-[var(--rule)]">
+          <div className="bg-(--paper) border border-(--rule) overflow-hidden">
+            <table className="w-full text-left text-sm text-(--text)">
+              <thead className="bg-(--paper-raised) docket-label text-[10px] text-(--text-dim) border-b border-(--rule)">
                 <tr>
                   <th className="px-6 py-4 w-16 text-center">해결</th>
                   <th className="px-6 py-4 w-28">사건번호</th>
@@ -133,7 +142,7 @@ export default function ProblemsPage() {
                   <th className="px-6 py-4 w-32">경중</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[var(--rule)]">
+              <tbody className="divide-y divide-(--rule)">
                 {filteredProblems.map((problem) => {
                   const diff = getDifficultyMeta(problem.difficulty);
                   const isSolved = solvedIds.has(problem.id);
@@ -142,22 +151,29 @@ export default function ProblemsPage() {
                     <tr
                       key={problem.id}
                       onClick={() => router.push(`/problems/${problem.id}`)}
-                      className="hover:bg-[var(--paper-raised)] cursor-pointer transition-colors group border-l-2 border-l-transparent hover:border-l-[var(--seal)]"
+                      className="hover:bg-(--paper-raised) cursor-pointer transition-colors group border-l-2 border-l-transparent hover:border-l-(--seal)"
                     >
                       <td className="px-6 py-4 text-center">
                         {isSolved ? (
-                          <CheckSquare className="inline-block text-[var(--accept)] w-4 h-4" />
+                          <CheckSquare className="inline-block text-(--accept) w-4 h-4" />
                         ) : (
-                          <Square className="inline-block text-[var(--rule-strong)] w-4 h-4 group-hover:text-[var(--text-faint)] transition-colors" />
+                          <Square className="inline-block text-(--rule-strong) w-4 h-4 group-hover:text-(--text-faint) transition-colors" />
                         )}
                       </td>
-                      <td className="px-6 py-4 text-[var(--text-dim)] docket-label text-[11px]">{caseNo(problem.id)}</td>
-                      <td className="px-6 py-4 font-medium text-[var(--text)] group-hover:text-[var(--seal)] transition-colors">
+                      <td className="px-6 py-4 text-(--text-dim) docket-label text-[11px]">
+                        {caseNo(problem.id)}
+                      </td>
+                      <td className="px-6 py-4 font-medium text-(--text) group-hover:text-(--seal) transition-colors">
                         {problem.title}
                       </td>
-                      <td className="px-6 py-4 font-mono text-[var(--text-dim)]">{getAcceptance(problem.id)}</td>
+                      <td className="px-6 py-4 font-mono text-(--text-dim)">
+                        {getAcceptance(problem.id)}
+                      </td>
                       <td className="px-6 py-4 docket-label text-[11px]">
-                        <span className="inline-flex items-center gap-1.5" style={{ color: diff.color }}>
+                        <span
+                          className="inline-flex items-center gap-1.5"
+                          style={{ color: diff.color }}
+                        >
                           <span
                             className="inline-block w-1.5 h-1.5 rounded-full"
                             style={{ backgroundColor: diff.color }}
@@ -172,8 +188,10 @@ export default function ProblemsPage() {
             </table>
 
             {filteredProblems.length === 0 && (
-              <div className="text-center py-20 text-[var(--text-dim)]">
-                {searchQuery ? "검색 결과가 없습니다." : "접수된 사건이 없습니다."}
+              <div className="text-center py-20 text-(--text-dim)">
+                {searchQuery
+                  ? "검색 결과가 없습니다."
+                  : "접수된 사건이 없습니다."}
               </div>
             )}
           </div>

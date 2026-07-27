@@ -10,13 +10,11 @@ const LANGUAGE_TEMPLATES: Record<string, { label: string; code: string }> = {
   },
   cpp: {
     label: "C++",
-    code:
-      "#include <iostream>\nusing namespace std;\n\nint main() {\n    int a, b;\n    cin >> a >> b;\n    cout << a + b << endl;\n    return 0;\n}\n",
+    code: "#include <iostream>\nusing namespace std;\n\nint main() {\n    int a, b;\n    cin >> a >> b;\n    cout << a + b << endl;\n    return 0;\n}\n",
   },
   java: {
     label: "Java",
-    code:
-      "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int a = sc.nextInt();\n        int b = sc.nextInt();\n        System.out.println(a + b);\n    }\n}\n",
+    code: "import java.util.Scanner;\n\npublic class Main {\n    public static void main(String[] args) {\n        Scanner sc = new Scanner(System.in);\n        int a = sc.nextInt();\n        int b = sc.nextInt();\n        System.out.println(a + b);\n    }\n}\n",
   },
 };
 
@@ -75,8 +73,9 @@ export default function CodeSubmitter() {
       <button
         onClick={handleSubmit}
         disabled={isLoading}
-        className={`cursor-pointer p-2 text-white rounded transition-colors ${isLoading ? "bg-gray-400" : "bg-green-600 hover:bg-green-700"
-          }`}
+        className={`cursor-pointer p-2 text-white rounded transition-colors ${
+          isLoading ? "bg-gray-400" : "bg-green-600 hover:bg-green-700"
+        }`}
       >
         {isLoading ? "제출 중..." : "제출하기"}
       </button>

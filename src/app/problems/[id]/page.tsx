@@ -7,7 +7,11 @@ import Editor from "@monaco-editor/react";
 import { useSubmissionState } from "@/hooks/useSubmissionState";
 import { Play, Send, ChevronLeft } from "lucide-react";
 import clsx from "clsx";
-import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
+import {
+  Panel,
+  Group as PanelGroup,
+  Separator as PanelResizeHandle,
+} from "react-resizable-panels";
 import ProblemContent from "@/components/ProblemContent";
 import StampTag, { StampTone, statusLabel } from "@/components/StampTag";
 import { getDifficultyMeta } from "@/lib/difficulty";
@@ -16,12 +20,9 @@ import { MONACO_LANGUAGE } from "@/lib/languages";
 // backend의 SupportedLanguage / judge의 LANGUAGES와 동기화해서 유지할 것.
 const STARTER_CODE: Record<string, string> = {
   python: "# 여기에 코드를 작성하세요.\n",
-  c:
-    "#include <stdio.h>\n\nint main(void) {\n    // 여기에 코드를 작성하세요.\n    return 0;\n}\n",
-  cpp:
-    "#include <iostream>\nusing namespace std;\n\nint main() {\n    // 여기에 코드를 작성하세요.\n    return 0;\n}\n",
-  java:
-    "public class Main {\n    public static void main(String[] args) {\n        // 여기에 코드를 작성하세요.\n    }\n}\n",
+  c: "#include <stdio.h>\n\nint main(void) {\n    // 여기에 코드를 작성하세요.\n    return 0;\n}\n",
+  cpp: "#include <iostream>\nusing namespace std;\n\nint main() {\n    // 여기에 코드를 작성하세요.\n    return 0;\n}\n",
+  java: "public class Main {\n    public static void main(String[] args) {\n        // 여기에 코드를 작성하세요.\n    }\n}\n",
   // SQL 전용 문제 UI는 아직 없어서, 지금은 테스트케이스의 입력이 스키마/시드
   // 데이터(셋업 스크립트), 여기 작성하는 코드는 쿼리 하나로 취급
   sql: "-- 여기에 쿼리를 작성하세요.\nSELECT 1;\n",
@@ -43,8 +44,12 @@ export default function ProblemWorkspace() {
   const [problem, setProblem] = useState<any>(null);
   const [testCases, setTestCases] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
-  const [activeLeftTab, setActiveLeftTab] = useState<"description" | "result" | "history">("description");
-  const [activeConsoleTab, setActiveConsoleTab] = useState<"testcases" | "result">("testcases");
+  const [activeLeftTab, setActiveLeftTab] = useState<
+    "description" | "result" | "history"
+  >("description");
+  const [activeConsoleTab, setActiveConsoleTab] = useState<
+    "testcases" | "result"
+  >("testcases");
 
   const [code, setCode] = useState(STARTER_CODE["python"]);
   const [language, setLanguage] = useState("python");
@@ -68,10 +73,19 @@ export default function ProblemWorkspace() {
   useEffect(() => {
     if (!problemId) return;
     const fetchProblem = async () => {
-      const { data } = await supabase.from("problems").select("*").eq("id", problemId).single();
+      const { data } = await supabase
+        .from("problems")
+        .select("*")
+        .eq("id", problemId)
+        .single();
       if (data) setProblem(data);
 
-      const { data: testCasesData } = await supabase.from("test_cases").select("*").eq("problem_id", problemId).eq("is_hidden", false).order("id");
+      const { data: testCasesData } = await supabase
+        .from("test_cases")
+        .select("*")
+        .eq("problem_id", problemId)
+        .eq("is_hidden", false)
+        .order("id");
       if (testCasesData) setTestCases(testCasesData);
     };
     fetchProblem();
@@ -94,7 +108,9 @@ export default function ProblemWorkspace() {
   // /submit, /test_run 둘 다 로그인한 유저인지 백엔드에서 검증해야 하므로
   // Supabase 세션의 access_token을 Authorization 헤더로 실어보냄.
   const authHeaders = async () => {
-    const { data: { session } } = await supabase.auth.getSession();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
     if (!session) throw new Error("로그인이 필요합니다.");
     return {
       "Content-Type": "application/json",
@@ -175,36 +191,46 @@ export default function ProblemWorkspace() {
   };
 
   if (!problem) {
-    return <div className="h-screen bg-[var(--ink)] flex items-center justify-center text-[var(--seal)]">Loading...</div>;
+    return (
+      <div className="h-screen bg-(--ink) flex items-center justify-center text-(--seal)">
+        Loading...
+      </div>
+    );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-[var(--ink)] text-[var(--text)] overflow-hidden font-sans">
+    <div className="h-screen flex flex-col bg-(--ink) text-(--text) overflow-hidden font-sans">
       {/* Workspace Header */}
-      <header className="h-14 bg-[var(--paper)] border-b border-[var(--rule)] flex items-center justify-between px-4 shrink-0">
+      <header className="h-14 bg-(--paper) border-b border-(--rule) flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-4">
-          <button onClick={() => router.push("/problems")} className="text-[var(--text-dim)] hover:text-white transition-colors flex items-center gap-1 bg-[var(--rule)] hover:bg-[var(--rule-strong)] px-3 py-1.5 rounded-sm text-sm">
+          <button
+            onClick={() => router.push("/problems")}
+            className="text-(--text-dim) hover:text-white transition-colors flex items-center gap-1 bg-(--rule) hover:bg-(--rule-strong) px-3 py-1.5 rounded-sm text-sm"
+          >
             <ChevronLeft size={16} /> 목록
           </button>
           <div className="flex items-center gap-2">
-            <span className="docket-label text-[var(--seal)] bg-[var(--seal)]/10 px-2 py-0.5 text-xs">
+            <span className="docket-label text-(--seal) bg-(--seal)/10 px-2 py-0.5 text-xs">
               № {String(problem.id).padStart(3, "0")}
             </span>
-            <h1 className="font-semibold text-[var(--text)]">{problem.title}</h1>
+            <h1 className="font-semibold text-(--text)">
+              {problem.title}
+            </h1>
           </div>
         </div>
         <div className="flex items-center gap-3">
           <button
             onClick={handleTest}
             disabled={isTesting}
-            className="flex items-center gap-2 bg-[var(--rule)] hover:bg-[var(--rule-strong)] text-[var(--text)] px-4 py-1.5 rounded-sm font-medium transition-colors disabled:opacity-50 text-sm"
+            className="flex items-center gap-2 bg-(--rule) hover:bg-(--rule-strong) text-(--text) px-4 py-1.5 rounded-sm font-medium transition-colors disabled:opacity-50 text-sm"
           >
-            <Play size={14} className={isTesting ? "animate-pulse" : ""} /> 테스트
+            <Play size={14} className={isTesting ? "animate-pulse" : ""} />{" "}
+            테스트
           </button>
           <button
             onClick={handleSubmit}
             disabled={isSubmitting}
-            className="flex items-center gap-2 bg-[var(--seal)] hover:bg-[var(--seal-dim)] text-[var(--ink)] px-5 py-1.5 rounded-sm font-semibold transition-colors disabled:opacity-50 text-sm"
+            className="flex items-center gap-2 bg-(--seal) hover:bg-(--seal-dim) text-(--ink) px-5 py-1.5 rounded-sm font-semibold transition-colors disabled:opacity-50 text-sm"
           >
             <Send size={14} /> 제출
           </button>
@@ -213,22 +239,30 @@ export default function ProblemWorkspace() {
 
       {/* Resizable Workspace */}
       <div className="flex-1 overflow-hidden p-2 gap-2 flex">
-        <PanelGroup orientation="horizontal" className="w-full h-full rounded-sm overflow-hidden border border-[var(--rule)] shadow-2xl">
-
+        <PanelGroup
+          orientation="horizontal"
+          className="w-full h-full rounded-sm overflow-hidden border border-(--rule) shadow-2xl"
+        >
           {/* Left Pane (Description/Result) */}
-          <Panel defaultSize={50} minSize={25} className="bg-[var(--paper)] flex flex-col">
-            <div className="flex bg-[var(--paper)] border-b border-[var(--rule)] pt-2 px-2 gap-1 overflow-x-auto no-scrollbar shrink-0">
+          <Panel
+            defaultSize={50}
+            minSize={25}
+            className="bg-(--paper) flex flex-col"
+          >
+            <div className="flex bg-(--paper) border-b border-(--rule) pt-2 px-2 gap-1 overflow-x-auto no-scrollbar shrink-0">
               {[
                 { id: "description", label: "문제 설명" },
                 { id: "result", label: "채점 결과" },
-                { id: "history", label: "제출 현황" }
-              ].map(tab => (
+                { id: "history", label: "제출 현황" },
+              ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveLeftTab(tab.id as any)}
                   className={clsx(
                     "px-4 py-2 text-sm font-medium rounded-t-sm transition-colors whitespace-nowrap",
-                    activeLeftTab === tab.id ? "bg-[var(--rule)] text-[var(--seal)]" : "text-[var(--text-dim)] hover:text-[var(--text)] hover:bg-[var(--rule)]/50"
+                    activeLeftTab === tab.id
+                      ? "bg-(--rule) text-(--seal)"
+                      : "text-(--text-dim) hover:text-(--text) hover:bg-(--rule)/50",
                   )}
                 >
                   {tab.label}
@@ -236,32 +270,45 @@ export default function ProblemWorkspace() {
               ))}
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-[var(--rule-strong)]">
+            <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-(--rule-strong)">
               {activeLeftTab === "description" && (
                 <div className="prose prose-invert max-w-none">
                   <h2 className="text-2xl font-bold mb-4">{problem.title}</h2>
                   <div className="flex gap-3 mb-6 text-xs font-medium flex-wrap">
                     <span
                       className="docket-label px-2 py-1 border"
-                      style={{ color: getDifficultyMeta(problem.difficulty).color, borderColor: getDifficultyMeta(problem.difficulty).color, backgroundColor: `color-mix(in srgb, ${getDifficultyMeta(problem.difficulty).color} 10%, transparent)` }}
+                      style={{
+                        color: getDifficultyMeta(problem.difficulty).color,
+                        borderColor: getDifficultyMeta(problem.difficulty)
+                          .color,
+                        backgroundColor: `color-mix(in srgb, ${getDifficultyMeta(problem.difficulty).color} 10%, transparent)`,
+                      }}
                     >
                       {getDifficultyMeta(problem.difficulty).label}
                     </span>
-                    <span className="bg-[var(--rule)] text-[var(--text)] px-2 py-1 rounded border border-[var(--rule-strong)]">시간: {problem.time_limit_ms}ms</span>
-                    <span className="bg-[var(--rule)] text-[var(--text)] px-2 py-1 rounded border border-[var(--rule-strong)]">메모리: {problem.memory_limit_mb}MB</span>
+                    <span className="bg-(--rule) text-(--text) px-2 py-1 rounded border border-(--rule-strong)">
+                      시간: {problem.time_limit_ms}ms
+                    </span>
+                    <span className="bg-(--rule) text-(--text) px-2 py-1 rounded border border-(--rule-strong)">
+                      메모리: {problem.memory_limit_mb}MB
+                    </span>
                   </div>
 
                   {/* 문제 설명 */}
                   <section className="mb-6">
-                    <h3 className="text-base font-semibold text-[var(--text)] mb-3">문제</h3>
+                    <h3 className="text-base font-semibold text-(--text) mb-3">
+                      문제
+                    </h3>
                     <ProblemContent content={problem.description} />
                   </section>
 
                   {/* 입력 조건 */}
                   {problem.input_description && (
                     <section className="mb-6">
-                      <h3 className="text-base font-semibold text-[var(--text)] mb-3">입력</h3>
-                      <div className="bg-[var(--ink)]/50 p-4 rounded-sm border border-[var(--rule)]/50">
+                      <h3 className="text-base font-semibold text-(--text) mb-3">
+                        입력
+                      </h3>
+                      <div className="bg-(--ink)/50 p-4 rounded-sm border border-(--rule)/50">
                         <ProblemContent content={problem.input_description} />
                       </div>
                     </section>
@@ -270,8 +317,10 @@ export default function ProblemWorkspace() {
                   {/* 출력 조건 */}
                   {problem.output_description && (
                     <section className="mb-6">
-                      <h3 className="text-base font-semibold text-[var(--text)] mb-3">출력</h3>
-                      <div className="bg-[var(--ink)]/50 p-4 rounded-sm border border-[var(--rule)]/50">
+                      <h3 className="text-base font-semibold text-(--text) mb-3">
+                        출력
+                      </h3>
+                      <div className="bg-(--ink)/50 p-4 rounded-sm border border-(--rule)/50">
                         <ProblemContent content={problem.output_description} />
                       </div>
                     </section>
@@ -282,21 +331,29 @@ export default function ProblemWorkspace() {
               {activeLeftTab === "result" && (
                 <div className="flex flex-col items-center justify-center h-full">
                   {!subId ? (
-                    <div className="text-[var(--text-faint)] flex flex-col items-center gap-3">
-                      <Send size={48} className="text-[var(--rule-strong)]" />
+                    <div className="text-(--text-faint) flex flex-col items-center gap-3">
+                      <Send size={48} className="text-(--rule-strong)" />
                       <p>아직 제출한 코드가 없습니다.</p>
                     </div>
                   ) : (
-                    <div className="text-center bg-[var(--paper)] p-8 border border-[var(--rule)] max-w-sm w-full">
-                      <h3 className="docket-label text-xs text-[var(--text-faint)] mb-6">심사 결과</h3>
+                    <div className="text-center bg-(--paper) p-8 border border-(--rule) max-w-sm w-full">
+                      <h3 className="docket-label text-xs text-(--text-faint) mb-6">
+                        심사 결과
+                      </h3>
                       <div className="flex flex-col items-center gap-5">
-                        {(status === "Pending" || status === "Running") ? (
-                          <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-b-4 border-[var(--rule-strong)] border-t-[var(--pending)]"></div>
+                        {status === "Pending" || status === "Running" ? (
+                          <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-b-4 border-(--rule-strong) border-t-(--pending)"></div>
                         ) : (
-                          <StampTag label={statusLabel(status)} tone={statusTone(status)} size="lg" />
+                          <StampTag
+                            label={statusLabel(status)}
+                            tone={statusTone(status)}
+                            size="lg"
+                          />
                         )}
                         {(status === "Pending" || status === "Running") && (
-                          <div className="docket-label text-sm text-[var(--pending)]">{statusLabel(status)}</div>
+                          <div className="docket-label text-sm text-(--pending)">
+                            {statusLabel(status)}
+                          </div>
                         )}
                       </div>
                     </div>
@@ -306,21 +363,31 @@ export default function ProblemWorkspace() {
 
               {activeLeftTab === "history" && (
                 <div className="flex flex-col gap-3">
-                  <h3 className="text-lg font-bold text-[var(--text)] mb-2">제출 현황</h3>
+                  <h3 className="text-lg font-bold text-(--text) mb-2">
+                    제출 현황
+                  </h3>
                   {history.length === 0 ? (
-                    <div className="text-[var(--text-faint)] text-center mt-10">
+                    <div className="text-(--text-faint) text-center mt-10">
                       제출 내역이 없습니다.
                     </div>
                   ) : (
                     history.map((sub, idx) => (
-                      <div key={sub.id || idx} className="bg-[var(--paper)] border border-[var(--rule)] p-4 flex items-center justify-between border-l-2 border-l-[var(--rule)]">
+                      <div
+                        key={sub.id || idx}
+                        className="bg-(--paper) border border-(--rule) p-4 flex items-center justify-between border-l-2 border-l-(--rule)"
+                      >
                         <div className="flex items-center gap-3">
-                          <StampTag label={statusLabel(sub.status)} tone={statusTone(sub.status)} size="sm" />
-                          <div className="text-xs text-[var(--text-dim)] docket-label">
-                            {sub.language} · {new Date(sub.created_at).toLocaleString()}
+                          <StampTag
+                            label={statusLabel(sub.status)}
+                            tone={statusTone(sub.status)}
+                            size="sm"
+                          />
+                          <div className="text-xs text-(--text-dim) docket-label">
+                            {sub.language} ·{" "}
+                            {new Date(sub.created_at).toLocaleString()}
                           </div>
                         </div>
-                        <div className="text-xs font-mono bg-[var(--ink)] px-2 py-1 text-[var(--text-faint)]">
+                        <div className="text-xs font-mono bg-(--ink) px-2 py-1 text-(--text-faint)">
                           {sub.id.substring(0, 8)}
                         </div>
                       </div>
@@ -332,18 +399,22 @@ export default function ProblemWorkspace() {
           </Panel>
 
           {/* Vertical Handle */}
-          <PanelResizeHandle className="w-2 bg-[var(--ink)] hover:bg-[var(--seal)]/20 transition-colors cursor-col-resize" />
+          <PanelResizeHandle className="w-2 bg-(--ink) hover:bg-(--seal)/20 transition-colors cursor-col-resize" />
 
           {/* Right Pane (Editor & Console) */}
           <Panel defaultSize={50} minSize={30}>
             <PanelGroup orientation="vertical">
               {/* Editor Top Pane */}
-              <Panel defaultSize={50} minSize={20} className="bg-[#1e1e1e] flex flex-col relative">
+              <Panel
+                defaultSize={50}
+                minSize={20}
+                className="bg-[#1e1e1e] flex flex-col relative"
+              >
                 <div className="absolute top-2 left-4 z-10">
                   <select
                     value={language}
                     onChange={(e) => handleLanguageChange(e.target.value)}
-                    className="bg-[var(--rule)] text-[var(--text)] text-xs font-medium border border-[var(--rule-strong)] rounded-md px-3 py-1.5 focus:outline-none focus:border-[var(--seal)] hover:bg-[var(--rule-strong)] transition-colors cursor-pointer"
+                    className="bg-(--rule) text-(--text) text-xs font-medium border border-(--rule-strong) rounded-md px-3 py-1.5 focus:outline-none focus:border-(--seal) hover:bg-(--rule-strong) transition-colors cursor-pointer"
                   >
                     <option value="python">Python 3</option>
                     <option value="c">C</option>
@@ -374,55 +445,79 @@ export default function ProblemWorkspace() {
               </Panel>
 
               {/* Horizontal Handle */}
-              <PanelResizeHandle className="h-2 bg-[var(--ink)] hover:bg-[var(--seal)]/20 transition-colors cursor-row-resize" />
+              <PanelResizeHandle className="h-2 bg-(--ink) hover:bg-(--seal)/20 transition-colors cursor-row-resize" />
 
               {/* Console Bottom Pane */}
-              <Panel defaultSize={50} minSize={10} className="bg-[var(--paper)] flex flex-col border-t border-[var(--rule)]">
-                <div className="flex bg-[var(--paper)] border-b border-[var(--rule)] px-2 pt-2 gap-1 shrink-0">
+              <Panel
+                defaultSize={50}
+                minSize={10}
+                className="bg-(--paper) flex flex-col border-t border-(--rule)"
+              >
+                <div className="flex bg-(--paper) border-b border-(--rule) px-2 pt-2 gap-1 shrink-0">
                   {[
                     { id: "testcases", label: "Testcases" },
-                    { id: "result", label: "Test Result" }
-                  ].map(tab => (
+                    { id: "result", label: "Test Result" },
+                  ].map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveConsoleTab(tab.id as any)}
                       className={clsx(
                         "px-4 py-1.5 text-xs font-medium rounded-t-sm transition-colors flex items-center gap-1.5",
-                        activeConsoleTab === tab.id ? "bg-[var(--rule)] text-[var(--text)]" : "text-[var(--text-faint)] hover:text-[var(--text)] hover:bg-[var(--rule)]/50"
+                        activeConsoleTab === tab.id
+                          ? "bg-(--rule) text-(--text)"
+                          : "text-(--text-faint) hover:text-(--text) hover:bg-(--rule)/50",
                       )}
                     >
-                      {tab.id === "result" && isTesting && <div className="w-2 h-2 bg-[var(--pending)] rounded-full animate-pulse" />}
+                      {tab.id === "result" && isTesting && (
+                        <div className="w-2 h-2 bg-(--pending) rounded-full animate-pulse" />
+                      )}
                       {tab.label}
                     </button>
                   ))}
                 </div>
-                <div className="flex-1 p-4 font-mono text-sm overflow-auto scrollbar-thin scrollbar-thumb-[var(--rule-strong)] bg-[#0d1117]">
+                <div className="flex-1 p-4 font-mono text-sm overflow-auto scrollbar-thin scrollbar-thumb-(--rule-strong) bg-[#0d1117]">
                   {activeConsoleTab === "testcases" && (
-                    <div className="text-[var(--text-dim)] space-y-6">
+                    <div className="text-(--text-dim) space-y-6">
                       {testCases.map((tc, idx) => (
                         <div key={tc.id || idx}>
-                          <h4 className="text-[var(--seal)] font-semibold mb-2">Test Case {idx + 1}</h4>
-                          <p className="mb-2 font-semibold text-[var(--text)]">Input:</p>
-                          <div className="bg-[var(--rule)]/50 p-2 rounded border border-[var(--rule-strong)]/50 text-[var(--text)] mb-4 whitespace-pre-wrap">{tc.input_data}</div>
-                          <p className="mb-2 font-semibold text-[var(--text)]">Expected Output:</p>
-                          <div className="bg-[var(--rule)]/50 p-2 rounded border border-[var(--rule-strong)]/50 text-[var(--text)] whitespace-pre-wrap">{tc.expected_output}</div>
+                          <h4 className="text-(--seal) font-semibold mb-2">
+                            Test Case {idx + 1}
+                          </h4>
+                          <p className="mb-2 font-semibold text-(--text)">
+                            Input:
+                          </p>
+                          <div className="bg-(--rule)/50 p-2 rounded border border-(--rule-strong)/50 text-(--text) mb-4 whitespace-pre-wrap">
+                            {tc.input_data}
+                          </div>
+                          <p className="mb-2 font-semibold text-(--text)">
+                            Expected Output:
+                          </p>
+                          <div className="bg-(--rule)/50 p-2 rounded border border-(--rule-strong)/50 text-(--text) whitespace-pre-wrap">
+                            {tc.expected_output}
+                          </div>
                         </div>
                       ))}
                       {testCases.length === 0 && (
-                        <div className="text-[var(--text-faint)] italic">등록된 테스트 케이스가 없습니다.</div>
+                        <div className="text-(--text-faint) italic">
+                          등록된 테스트 케이스가 없습니다.
+                        </div>
                       )}
                     </div>
                   )}
                   {activeConsoleTab === "result" && (
-                    <div className="text-[var(--text)] whitespace-pre-wrap">
-                      {testResult || <span className="text-[var(--text-faint)] italic">"테스트" 버튼을 눌러 결과를 확인하세요. (제출 시에는 이 콘솔에 반영되지 않습니다)</span>}
+                    <div className="text-(--text) whitespace-pre-wrap">
+                      {testResult || (
+                        <span className="text-(--text-faint) italic">
+                          "테스트" 버튼을 눌러 결과를 확인하세요. (제출 시에는
+                          이 콘솔에 반영되지 않습니다)
+                        </span>
+                      )}
                     </div>
                   )}
                 </div>
               </Panel>
             </PanelGroup>
           </Panel>
-
         </PanelGroup>
       </div>
     </div>

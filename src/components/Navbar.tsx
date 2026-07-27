@@ -21,7 +21,11 @@ export default function Navbar() {
 
   useEffect(() => {
     const loadProfile = async (userId: string) => {
-      const { data } = await supabase.from("profiles").select("username, is_admin").eq("id", userId).single();
+      const { data } = await supabase
+        .from("profiles")
+        .select("username, is_admin")
+        .eq("id", userId)
+        .single();
       setUsername(data?.username ?? null);
       setIsAdmin(!!data?.is_admin);
     };
@@ -50,16 +54,19 @@ export default function Navbar() {
   };
 
   // 문제 풀이 화면 / 콘테스트 진행 화면은 전용 헤더(또는 락다운 UI)를 쓰므로 기본 Navbar 숨김
-  if (pathname?.startsWith("/problems/") || pathname?.startsWith("/contests/")) {
+  if (
+    pathname?.startsWith("/problems/") ||
+    pathname?.startsWith("/contests/")
+  ) {
     return null;
   }
 
   return (
-    <nav className="h-16 bg-[var(--paper)] border-b border-[var(--rule)] flex items-center justify-between px-6 sticky top-0 z-50">
+    <nav className="h-16 bg-(--paper) border-b border-(--rule) flex items-center justify-between px-6 sticky top-0 z-50">
       <div className="flex items-center gap-10">
         <Link href="/" className="flex items-center gap-2.5">
-          <Scale className="text-[var(--seal)]" size={22} strokeWidth={2.2} />
-          <span className="docket-label text-[15px] tracking-[0.18em] text-[var(--text)]">
+          <Scale className="text-(--seal)" size={22} strokeWidth={2.2} />
+          <span className="docket-label text-[15px] tracking-[0.18em] text-(--text)">
             LOJ
           </span>
         </Link>
@@ -73,8 +80,8 @@ export default function Navbar() {
                 className={clsx(
                   "docket-label text-[11px] px-4 py-2 border-b-2 transition-colors",
                   active
-                    ? "border-[var(--seal)] text-[var(--seal)]"
-                    : "border-transparent text-[var(--text-dim)] hover:text-[var(--text)] hover:border-[var(--rule-strong)]"
+                    ? "border-(--seal) text-(--seal)"
+                    : "border-transparent text-(--text-dim) hover:text-(--text) hover:border-(--rule-strong)",
                 )}
               >
                 {item.label}
@@ -87,8 +94,8 @@ export default function Navbar() {
               className={clsx(
                 "docket-label text-[11px] px-4 py-2 border-b-2 transition-colors",
                 pathname.startsWith("/admin")
-                  ? "border-[var(--seal)] text-[var(--seal)]"
-                  : "border-transparent text-[var(--text-faint)] hover:text-[var(--text)] hover:border-[var(--rule-strong)]"
+                  ? "border-(--seal) text-(--seal)"
+                  : "border-transparent text-(--text-faint) hover:text-(--text) hover:border-(--rule-strong)",
               )}
             >
               관리
@@ -100,13 +107,15 @@ export default function Navbar() {
       <div>
         {session ? (
           <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-[var(--text-dim)] bg-[var(--paper-raised)] border border-[var(--rule)] px-3 py-1.5 rounded-sm">
-              <User size={14} className="text-[var(--seal)]" />
-              <span className="docket-label text-[11px]">{username ?? session.user.email?.split("@")[0]}</span>
+            <div className="flex items-center gap-2 text-sm text-(--text-dim) bg-(--paper-raised) border border-(--rule) px-3 py-1.5 rounded-sm">
+              <User size={14} className="text-(--seal)" />
+              <span className="docket-label text-[11px]">
+                {username ?? session.user.email?.split("@")[0]}
+              </span>
             </div>
             <button
               onClick={handleLogout}
-              className="text-[var(--text-dim)] hover:text-[var(--reject)] transition-colors p-2"
+              className="text-(--text-dim) hover:text-(--reject) transition-colors p-2"
               title="로그아웃"
             >
               <LogOut size={18} />
@@ -115,7 +124,7 @@ export default function Navbar() {
         ) : (
           <Link
             href="/"
-            className="docket-label text-[11px] border border-[var(--seal)] text-[var(--seal)] hover:bg-[var(--seal)] hover:text-[var(--ink)] px-4 py-2 rounded-sm transition-colors"
+            className="docket-label text-[11px] border border-(--seal) text-(--seal) hover:bg-(--seal) hover:text-(--ink) px-4 py-2 rounded-sm transition-colors"
           >
             로그인
           </Link>
