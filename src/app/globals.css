@@ -30,16 +30,16 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --ink: #14221c;
-  --paper: #1c3027;
-  --paper-raised: #284135;
-  --rule: #3a5346;
-  --rule-strong: #688374;
-  --text: #edf4ef;
-  --text-dim: #c1d2c7;
-  --text-faint: #a5bbae;
-  --seal: #a2d6b5;
-  --seal-dim: #88c39e;
+  --ink: #181818;
+  --paper: #222222;
+  --paper-raised: #2c2c2c;
+  --rule: #404040;
+  --rule-strong: #737373;
+  --text: #f2f2f2;
+  --text-dim: #cccccc;
+  --text-faint: #ababab;
+  --seal: #e0e0e0;
+  --seal-dim: #c4c4c4;
   --accept: #95d9ad;
   --accept-dim: #78bf92;
   --reject: #ffa9ae;
