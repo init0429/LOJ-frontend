@@ -17,21 +17,11 @@ import {
 import ProblemContent from "@/components/ProblemContent";
 import StampTag, { StampTone, statusLabel } from "@/components/StampTag";
 import { getDifficultyMeta } from "@/lib/difficulty";
-import { MONACO_LANGUAGE } from "@/lib/languages";
+import { MONACO_LANGUAGE, STARTER_CODE } from "@/lib/languages";
+import LanguageSelect from "@/components/LanguageSelect";
 import type { Problem, TestCase, Submission } from "@/lib/types";
 import { submitCode, testCode } from "@/lib/judge-api";
 import { errorMessage } from "@/lib/errors";
-
-// backend의 SupportedLanguage / judge의 LANGUAGES와 동기화해서 유지할 것.
-const STARTER_CODE: Record<string, string> = {
-  python: "# 여기에 코드를 작성하세요.\n",
-  c: "#include <stdio.h>\n\nint main(void) {\n    // 여기에 코드를 작성하세요.\n    return 0;\n}\n",
-  cpp: "#include <iostream>\nusing namespace std;\n\nint main() {\n    // 여기에 코드를 작성하세요.\n    return 0;\n}\n",
-  java: "public class Main {\n    public static void main(String[] args) {\n        // 여기에 코드를 작성하세요.\n    }\n}\n",
-  // SQL 전용 문제 UI는 아직 없어서, 지금은 테스트케이스의 입력이 스키마/시드
-  // 데이터(셋업 스크립트), 여기 작성하는 코드는 쿼리 하나로 취급
-  sql: "-- 여기에 쿼리를 작성하세요.\nSELECT 1;\n",
-};
 
 // 채점 상태 문자열을 도장 색상으로 매핑
 const statusTone = (status: string): StampTone => {
@@ -402,18 +392,7 @@ function ProblemWorkspaceContent() {
               >
                 <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-(--rule)">
                   <span className="text-sm font-semibold">코드</span>
-                  <select
-                    aria-label="프로그래밍 언어"
-                    value={language}
-                    onChange={(e) => handleLanguageChange(e.target.value)}
-                    className="bg-(--rule) text-(--text) text-xs font-medium border border-(--rule-strong) rounded-md px-3 py-1.5 focus:outline-none focus:border-(--seal) hover:bg-(--rule-strong) transition-colors cursor-pointer"
-                  >
-                    <option value="python">Python 3</option>
-                    <option value="c">C</option>
-                    <option value="cpp">C++</option>
-                    <option value="java">Java</option>
-                    <option value="sql">SQL</option>
-                  </select>
+                  <LanguageSelect value={language} onChange={handleLanguageChange} />
                 </div>
 
                 <div className="flex-1 min-h-0">

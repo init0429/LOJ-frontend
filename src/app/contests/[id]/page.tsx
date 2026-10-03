@@ -12,18 +12,11 @@ import clsx from "clsx";
 import Link from "next/link";
 import ProblemContent from "@/components/ProblemContent";
 import StampTag, { StampTone, statusLabel } from "@/components/StampTag";
-import { MONACO_LANGUAGE } from "@/lib/languages";
+import { MONACO_LANGUAGE, STARTER_CODE } from "@/lib/languages";
+import LanguageSelect from "@/components/LanguageSelect";
 import type { Contest, Problem, TestCase } from "@/lib/types";
 import { submitCode, testCode } from "@/lib/judge-api";
 import { errorMessage } from "@/lib/errors";
-
-const STARTER_CODE: Record<string, string> = {
-  python: "# 여기에 코드를 작성하세요.\n",
-  c: "#include <stdio.h>\n\nint main(void) {\n    // 여기에 코드를 작성하세요.\n    return 0;\n}\n",
-  cpp: "#include <iostream>\nusing namespace std;\n\nint main() {\n    // 여기에 코드를 작성하세요.\n    return 0;\n}\n",
-  java: "public class Main {\n    public static void main(String[] args) {\n        // 여기에 코드를 작성하세요.\n    }\n}\n",
-  sql: "-- 여기에 쿼리를 작성하세요.\nSELECT 1;\n",
-};
 
 const statusTone = (status: string): StampTone => {
   if (status === "Accepted") return "accept";
@@ -440,24 +433,16 @@ export default function ContestWorkspace() {
         {/* 에디터 + 콘솔 */}
         <div className="w-1/2 flex flex-col">
           <div className="flex items-center justify-between px-4 py-2 bg-(--paper) border-b border-(--rule) shrink-0">
-            <select
+            <LanguageSelect
               value={language}
               disabled={!draftReady}
-              onChange={(e) => {
-                const next = e.target.value;
+              onChange={(next) => {
                 if (Object.values(STARTER_CODE).includes(code)) setCode(STARTER_CODE[next]);
                 setLanguage(next);
                 setDirty(true);
                 setSaveState("saving");
               }}
-              className="bg-(--rule) text-(--text) text-xs font-medium border border-(--rule-strong) rounded-sm px-3 py-1.5 focus:outline-none focus:border-(--seal)"
-            >
-              <option value="python">Python 3</option>
-              <option value="c">C</option>
-              <option value="cpp">C++</option>
-              <option value="java">Java</option>
-              <option value="sql">SQL</option>
-            </select>
+            />
             <div className="flex gap-2">
               <button
                 onClick={handleTest}

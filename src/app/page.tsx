@@ -53,7 +53,7 @@ export default function Home() {
             <span className="text-(--text-faint)">채점 결과 예시</span>
           </div>
         </div>
-        <p className="mt-5 text-sm text-(--text-faint)">Python, C, C++, Java, SQL을 지원합니다.</p>
+        <p className="mt-5 text-sm text-(--text-faint)">Python, C, C++, Java, SQL, JavaScript, TypeScript, Ruby, PHP, Perl을 지원합니다.</p>
       </section>
 
       <section className="w-full max-w-md py-6" aria-labelledby="login-title">
