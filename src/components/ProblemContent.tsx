@@ -22,11 +22,11 @@ export default function ProblemContent({
   return (
     <div
       className={`prose max-w-none
-        prose-p:text-slate-300 prose-p:leading-relaxed
-        prose-li:text-slate-300
-        prose-code:text-emerald-300 prose-code:bg-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono
-        prose-pre:bg-slate-800 prose-pre:border prose-pre:border-slate-700
-        prose-strong:text-slate-100
+        prose-p:text-(--text-dim) prose-p:leading-relaxed
+        prose-li:text-(--text-dim)
+        prose-code:text-(--seal) prose-code:bg-(--paper-raised) prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono
+        prose-pre:bg-(--paper-raised) prose-pre:border prose-pre:border-(--rule)
+        prose-strong:text-(--text)
         ${className}`}
     >
       <ReactMarkdown remarkPlugins={[remarkMath]} rehypePlugins={[rehypeKatex]}>
