@@ -243,7 +243,7 @@ export default function ContestWorkspace() {
     setIsTesting(true);
     setConsoleOutput("코드 실행 중...");
     try {
-      const result = await testCode({ problem_id: currentProblem.id, language, code });
+      const result = await testCode({ problem_id: currentProblem.id, language, code, contest_id: Number(contestId) });
       let output = `최종 결과: ${statusLabel(result.status)}\n\n`;
       (result.test_cases || []).forEach((tc, i) => {
         output += `[테스트케이스 ${i + 1}] - ${statusLabel(tc.status)}\n`;
