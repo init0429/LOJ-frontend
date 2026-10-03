@@ -2,32 +2,27 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
 
 export function useSubmissionState(subId: string | null) {
-  const [status, setStatus] = useState<string>("코드 작성 중");
+  const [result, setResult] = useState<{ id: string; status: string } | null>(null);
 
   useEffect(() => {
-    if (!subId) {
-      setStatus("코드 작성 중");
-      return;
-    }
-
-    setStatus("Pending");
-    let isSubscribed = true;
+    if (!subId) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
     const pollStatus = async () => {
-      if (!isSubscribed) return;
       const { data, error } = await supabase
         .from("submissions")
         .select("status")
         .eq("id", subId)
         .single();
 
+      if (cancelled) return;
       if (error) {
         console.error("상태 조회 에러:", error);
-        return;
       }
 
       if (data) {
-        setStatus(data.status);
+        setResult({ id: subId, status: data.status });
         if (
           [
             "Accepted",
@@ -38,22 +33,20 @@ export function useSubmissionState(subId: string | null) {
             "System Error",
           ].includes(data.status)
         ) {
-          isSubscribed = false;
+          return;
         }
       }
+      timer = setTimeout(pollStatus, 1000);
     };
 
-    const intervalId = setInterval(() => {
-      if (isSubscribed) {
-        pollStatus();
-      }
-    }, 1000);
+    void pollStatus();
 
     return () => {
-      isSubscribed = false;
-      clearInterval(intervalId);
+      cancelled = true;
+      clearTimeout(timer);
     };
   }, [subId]);
 
-  return status;
+  if (!subId) return "코드 작성 중";
+  return result?.id === subId ? result.status : "Pending";
 }

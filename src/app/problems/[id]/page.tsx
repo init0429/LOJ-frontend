@@ -16,6 +16,9 @@ import ProblemContent from "@/components/ProblemContent";
 import StampTag, { StampTone, statusLabel } from "@/components/StampTag";
 import { getDifficultyMeta } from "@/lib/difficulty";
 import { MONACO_LANGUAGE } from "@/lib/languages";
+import type { Problem, TestCase, Submission } from "@/lib/types";
+import { submitCode, testCode } from "@/lib/judge-api";
+import { errorMessage } from "@/lib/errors";
 
 // backend의 SupportedLanguage / judge의 LANGUAGES와 동기화해서 유지할 것.
 const STARTER_CODE: Record<string, string> = {
@@ -41,9 +44,10 @@ export default function ProblemWorkspace() {
   const router = useRouter();
   const problemId = params.id as string;
 
-  const [problem, setProblem] = useState<any>(null);
-  const [testCases, setTestCases] = useState<any[]>([]);
-  const [history, setHistory] = useState<any[]>([]);
+  const [problem, setProblem] = useState<Problem | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [history, setHistory] = useState<Submission[]>([]);
   const [activeLeftTab, setActiveLeftTab] = useState<
     "description" | "result" | "history"
   >("description");
@@ -72,13 +76,20 @@ export default function ProblemWorkspace() {
 
   useEffect(() => {
     if (!problemId) return;
+    let cancelled = false;
     const fetchProblem = async () => {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("problems")
         .select("*")
         .eq("id", problemId)
         .single();
-      if (data) setProblem(data);
+      if (cancelled) return;
+      if (error || !data) {
+        setLoadError("문제를 불러올 수 없습니다. 주소와 접근 권한을 확인하세요.");
+        return;
+      }
+      setLoadError(null);
+      setProblem(data);
 
       const { data: testCasesData } = await supabase
         .from("test_cases")
@@ -86,9 +97,10 @@ export default function ProblemWorkspace() {
         .eq("problem_id", problemId)
         .eq("is_hidden", false)
         .order("id");
-      if (testCasesData) setTestCases(testCasesData);
+      if (!cancelled && testCasesData) setTestCases(testCasesData);
     };
     fetchProblem();
+    return () => { cancelled = true; };
   }, [problemId]);
 
   useEffect(() => {
@@ -105,41 +117,19 @@ export default function ProblemWorkspace() {
     }
   }, [activeLeftTab, problemId]);
 
-  // /submit, /test_run 둘 다 로그인한 유저인지 백엔드에서 검증해야 하므로
-  // Supabase 세션의 access_token을 Authorization 헤더로 실어보냄.
-  const authHeaders = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) throw new Error("로그인이 필요합니다.");
-    return {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-    };
-  };
-
   const handleSubmit = async () => {
     setIsSubmitting(true);
     setSubId(null);
     setActiveLeftTab("result");
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${apiUrl}/submit`, {
-        method: "POST",
-        headers: await authHeaders(),
-        body: JSON.stringify({
+      setSubId(await submitCode({
           problem_id: parseInt(problemId, 10),
           language,
           code,
-        }),
-      });
-
-      if (!response.ok) throw new Error("서버 통신 에러");
-      const data = await response.json();
-      setSubId(data.submission_id);
-    } catch (err: any) {
-      alert(err.message || "오류가 발생했습니다.");
+      }));
+    } catch (err) {
+      alert(errorMessage(err, "오류가 발생했습니다."));
     } finally {
       setIsSubmitting(false);
     }
@@ -151,29 +141,17 @@ export default function ProblemWorkspace() {
     setTestResult("코드 실행 중...");
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${apiUrl}/test_run`, {
-        method: "POST",
-        headers: await authHeaders(),
-        body: JSON.stringify({
+      const result = await testCode({
           problem_id: parseInt(problemId, 10),
           language,
           code,
-        }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok || data.status === "error") {
-        throw new Error(data.message || "서버 통신 에러");
-      }
-
       // 결과 포맷팅 (콘솔 로그 형태, 전부 한글로 통일)
-      const result = data.result;
       let output = `최종 결과: ${statusLabel(result.status)}\n\n`;
 
       if (result.test_cases) {
-        result.test_cases.forEach((tc: any, i: number) => {
+        result.test_cases.forEach((tc, i) => {
           output += `[테스트케이스 ${i + 1}] - ${statusLabel(tc.status)}\n`;
           output += `입력값: ${tc.input.trim()}\n`;
           output += `기댓값: ${tc.expected.trim()}\n`;
@@ -183,12 +161,16 @@ export default function ProblemWorkspace() {
       }
 
       setTestResult(output);
-    } catch (err: any) {
-      setTestResult(`실행 오류: ${err.message}`);
+    } catch (err) {
+      setTestResult(`실행 오류: ${errorMessage(err, "알 수 없는 오류")}`);
     } finally {
       setIsTesting(false);
     }
   };
+
+  if (loadError) {
+    return <div role="alert" className="p-8 text-(--reject)">{loadError}</div>;
+  }
 
   if (!problem) {
     return (
@@ -250,14 +232,14 @@ export default function ProblemWorkspace() {
             className="bg-(--paper) flex flex-col"
           >
             <div className="flex bg-(--paper) border-b border-(--rule) pt-2 px-2 gap-1 overflow-x-auto no-scrollbar shrink-0">
-              {[
+              {([
                 { id: "description", label: "문제 설명" },
                 { id: "result", label: "채점 결과" },
                 { id: "history", label: "제출 현황" },
-              ].map((tab) => (
+              ] as const).map((tab) => (
                 <button
                   key={tab.id}
-                  onClick={() => setActiveLeftTab(tab.id as any)}
+                  onClick={() => setActiveLeftTab(tab.id)}
                   className={clsx(
                     "px-4 py-2 text-sm font-medium rounded-t-sm transition-colors whitespace-nowrap",
                     activeLeftTab === tab.id
@@ -454,13 +436,13 @@ export default function ProblemWorkspace() {
                 className="bg-(--paper) flex flex-col border-t border-(--rule)"
               >
                 <div className="flex bg-(--paper) border-b border-(--rule) px-2 pt-2 gap-1 shrink-0">
-                  {[
+                  {([
                     { id: "testcases", label: "Testcases" },
                     { id: "result", label: "Test Result" },
-                  ].map((tab) => (
+                  ] as const).map((tab) => (
                     <button
                       key={tab.id}
-                      onClick={() => setActiveConsoleTab(tab.id as any)}
+                      onClick={() => setActiveConsoleTab(tab.id)}
                       className={clsx(
                         "px-4 py-1.5 text-xs font-medium rounded-t-sm transition-colors flex items-center gap-1.5",
                         activeConsoleTab === tab.id
@@ -508,7 +490,7 @@ export default function ProblemWorkspace() {
                     <div className="text-(--text) whitespace-pre-wrap">
                       {testResult || (
                         <span className="text-(--text-faint) italic">
-                          "테스트" 버튼을 눌러 결과를 확인하세요. (제출 시에는
+                          &quot;테스트&quot; 버튼을 눌러 결과를 확인하세요. (제출 시에는
                           이 콘솔에 반영되지 않습니다)
                         </span>
                       )}

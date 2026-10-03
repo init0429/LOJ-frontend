@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Plus, Trash2 } from "lucide-react";
 import StampTag from "@/components/StampTag";
 import AdminTabs from "@/components/AdminTabs";
+import { errorMessage } from "@/lib/errors";
 
 interface TestCaseDraft {
   input_data: string;
@@ -152,8 +153,8 @@ export default function AdminProblemsPage() {
         ...prev,
       ]);
       resetForm();
-    } catch (err: any) {
-      setError(err.message || "등록 중 오류가 발생했습니다.");
+    } catch (err) {
+      setError(errorMessage(err, "등록 중 오류가 발생했습니다."));
     } finally {
       setSubmitting(false);
     }

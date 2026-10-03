@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { useSubmissionState } from "../hooks/useSubmissionState";
+import { submitCode } from "@/lib/judge-api";
+import { errorMessage } from "@/lib/errors";
 
 const LANGUAGE_TEMPLATES: Record<string, { label: string; code: string }> = {
   python: {
@@ -31,25 +33,13 @@ export default function CodeSubmitter() {
     setSubId(null);
 
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${apiUrl}/submit`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      setSubId(await submitCode({
           problem_id: 1,
           language,
           code: LANGUAGE_TEMPLATES[language].code,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`서버 에러: ${response.status}`);
-      }
-
-      const data = await response.json();
-      setSubId(data.submission_id);
-    } catch (err: any) {
-      setError(err.message || "제출 중 알 수 없는 에러가 발생했습니다.");
+      }));
+    } catch (err) {
+      setError(errorMessage(err, "제출 중 알 수 없는 에러가 발생했습니다."));
     } finally {
       setIsLoading(false);
     }

@@ -17,12 +17,11 @@ interface Contest {
 
 type Phase = "ongoing" | "upcoming" | "past";
 
-const getPhase = (contest: Contest): Phase => {
-  const now = Date.now();
+const getPhase = (contest: Contest, now: number): Phase => {
   const start = new Date(contest.start_time).getTime();
   const end = new Date(contest.end_time).getTime();
   if (now < start) return "upcoming";
-  if (now > end) return "past";
+  if (now >= end) return "past";
   return "ongoing";
 };
 
@@ -40,6 +39,12 @@ export default function ContestsPage() {
   const [contests, setContests] = useState<Contest[]>([]);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const [now, setNow] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     const fetchContests = async () => {
@@ -50,13 +55,14 @@ export default function ContestsPage() {
 
       if (error) console.error("콘테스트 목록 로딩 에러:", error);
       else setContests(data || []);
+      setNow(Date.now());
       setLoading(false);
     };
     fetchContests();
   }, []);
 
   const filtered = contests.filter(
-    (c) => activeTab === "all" || getPhase(c) === activeTab,
+    (c) => activeTab === "all" || getPhase(c, now) === activeTab,
   );
 
   return (
@@ -78,15 +84,15 @@ export default function ContestsPage() {
 
           {/* Tabs */}
           <div className="flex border border-(--rule) self-start md:self-auto">
-            {[
+            {([
               { id: "all", label: "전체" },
               { id: "ongoing", label: "심리 중" },
               { id: "upcoming", label: "예정" },
               { id: "past", label: "종결" },
-            ].map((tab) => (
+            ] as const).map((tab) => (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id as any)}
+                onClick={() => setActiveTab(tab.id)}
                 className={clsx(
                   "docket-label text-[11px] px-4 py-2 transition-colors border-r border-(--rule) last:border-r-0",
                   activeTab === tab.id
@@ -115,7 +121,7 @@ export default function ContestsPage() {
               </div>
             ) : (
               filtered.map((contest) => {
-                const phase = getPhase(contest);
+                const phase = getPhase(contest, now);
                 const meta = PHASE_META[phase];
                 return (
                   <div

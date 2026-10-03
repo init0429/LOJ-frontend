@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { Scale, LogOut, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
+import type { Session } from "@supabase/supabase-js";
 
 const NAV_ITEMS = [
   { href: "/problems", label: "사건 목록" },
@@ -14,39 +15,44 @@ const NAV_ITEMS = [
 ];
 
 export default function Navbar() {
-  const [session, setSession] = useState<any>(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
+    let active = true;
+    let currentUserId: string | undefined;
     const loadProfile = async (userId: string) => {
       const { data } = await supabase
         .from("profiles")
         .select("username, is_admin")
         .eq("id", userId)
         .single();
+      if (!active || currentUserId !== userId) return;
       setUsername(data?.username ?? null);
       setIsAdmin(!!data?.is_admin);
     };
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session) loadProfile(session.user.id);
-    });
-
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      currentUserId = session?.user.id;
       setSession(session);
-      if (session) loadProfile(session.user.id);
-      else {
-        setUsername(null);
-        setIsAdmin(false);
+      setUsername(null);
+      setIsAdmin(false);
+      if (session) {
+        const userId = session.user.id;
+        setTimeout(() => {
+          if (active && currentUserId === userId) void loadProfile(userId);
+        }, 0);
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -62,15 +68,15 @@ export default function Navbar() {
   }
 
   return (
-    <nav className="h-16 bg-(--paper) border-b border-(--rule) flex items-center justify-between px-6 sticky top-0 z-50">
-      <div className="flex items-center gap-10">
+    <nav className="min-h-16 bg-(--paper) border-b border-(--rule) flex flex-wrap items-center justify-between gap-y-2 px-4 py-3 md:px-6 sticky top-0 z-50">
+      <div className="flex flex-wrap items-center gap-3 md:gap-10">
         <Link href="/" className="flex items-center gap-2.5">
           <Scale className="text-(--seal)" size={22} strokeWidth={2.2} />
           <span className="docket-label text-[15px] tracking-[0.18em] text-(--text)">
             LOJ
           </span>
         </Link>
-        <div className="hidden md:flex gap-1 text-sm">
+        <div className="flex flex-wrap gap-1 text-sm">
           {NAV_ITEMS.map((item) => {
             const active = pathname.startsWith(item.href);
             return (

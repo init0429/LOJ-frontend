@@ -9,6 +9,7 @@ import clsx from "clsx";
 import StampTag, { StampTone, statusLabel } from "@/components/StampTag";
 import Editor from "@monaco-editor/react";
 import { MONACO_LANGUAGE } from "@/lib/languages";
+import type { Contest } from "@/lib/types";
 
 interface ContestProblem {
   id: number;
@@ -45,7 +46,7 @@ export default function ContestResultsPage() {
   const [checking, setChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  const [contest, setContest] = useState<any>(null);
+  const [contest, setContest] = useState<Contest | null>(null);
   const [problems, setProblems] = useState<ContestProblem[]>([]);
   const [submissions, setSubmissions] = useState<SubmissionRow[]>([]);
   const [participants, setParticipants] = useState<Participant[]>([]);
@@ -90,7 +91,8 @@ export default function ContestResultsPage() {
             .from("contest_problems")
             .select("order, problems(id, title)")
             .eq("contest_id", contestId)
-            .order("order", { ascending: true }),
+            .order("order", { ascending: true })
+            .returns<{ order: number; problems: ContestProblem | null }[]>(),
           supabase
             .from("submissions")
             .select(
@@ -101,7 +103,7 @@ export default function ContestResultsPage() {
         ]);
 
       setContest(contestData);
-      setProblems((cp || []).map((row: any) => row.problems).filter(Boolean));
+      setProblems((cp || []).flatMap((row) => row.problems ? [row.problems] : []));
       setSubmissions(subs || []);
 
       const userIds = Array.from(

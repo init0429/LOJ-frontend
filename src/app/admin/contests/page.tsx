@@ -8,6 +8,7 @@ import { Check } from "lucide-react";
 import clsx from "clsx";
 import StampTag from "@/components/StampTag";
 import AdminTabs from "@/components/AdminTabs";
+import { errorMessage } from "@/lib/errors";
 
 interface Problem {
   id: number;
@@ -123,8 +124,8 @@ export default function AdminContestsPage() {
       setStartTime("");
       setEndTime("");
       setSelectedIds([]);
-    } catch (err: any) {
-      setError(err.message || "생성 중 오류가 발생했습니다.");
+    } catch (err) {
+      setError(errorMessage(err, "생성 중 오류가 발생했습니다."));
     } finally {
       setSubmitting(false);
     }

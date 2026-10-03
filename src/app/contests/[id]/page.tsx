@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Editor from "@monaco-editor/react";
@@ -11,6 +11,9 @@ import Link from "next/link";
 import ProblemContent from "@/components/ProblemContent";
 import StampTag, { StampTone, statusLabel } from "@/components/StampTag";
 import { MONACO_LANGUAGE } from "@/lib/languages";
+import type { Contest, Problem, TestCase } from "@/lib/types";
+import { submitCode, testCode } from "@/lib/judge-api";
+import { errorMessage } from "@/lib/errors";
 
 const STARTER_CODE: Record<string, string> = {
   python: "# 여기에 코드를 작성하세요.\n",
@@ -33,7 +36,7 @@ function getPhase(start: string, end: string, now: number): Phase {
   const s = new Date(start).getTime();
   const e = new Date(end).getTime();
   if (now < s) return "upcoming";
-  if (now > e) return "ended";
+  if (now >= e) return "ended";
   return "ongoing";
 }
 
@@ -50,15 +53,16 @@ export default function ContestWorkspace() {
   const params = useParams();
   const contestId = params.id as string;
 
-  const [contest, setContest] = useState<any>(null);
-  const [problems, setProblems] = useState<any[]>([]);
+  const [contest, setContest] = useState<Contest | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [problems, setProblems] = useState<Problem[]>([]);
   const [activeIdx, setActiveIdx] = useState(0);
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(0);
 
   const [code, setCode] = useState("");
   const [language, setLanguage] = useState("python");
-  const [testCases, setTestCases] = useState<any[]>([]);
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">(
+  const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">(
     "idle",
   );
 
@@ -68,9 +72,12 @@ export default function ContestWorkspace() {
   const [isTesting, setIsTesting] = useState(false);
   const [consoleOutput, setConsoleOutput] = useState<string | null>(null);
 
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const skipNextSave = useRef(false);
+  const [loadedProblemId, setLoadedProblemId] = useState<number | null>(null);
+  const [dirty, setDirty] = useState(false);
+  const [saveAttempt, setSaveAttempt] = useState(0);
   const currentProblem = problems[activeIdx];
+  const currentProblemId = currentProblem?.id;
+  const draftReady = currentProblemId !== undefined && loadedProblemId === currentProblemId;
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -79,50 +86,74 @@ export default function ContestWorkspace() {
 
   useEffect(() => {
     if (!contestId) return;
+    let cancelled = false;
     (async () => {
-      const { data: contestData } = await supabase
+      const { data: contestData, error } = await supabase
         .from("contests")
         .select("*")
         .eq("id", contestId)
         .single();
+      if (cancelled) return;
+      if (error || !contestData) {
+        setLoadError("콘테스트를 불러올 수 없습니다.");
+        return;
+      }
+      setNow(Date.now());
       setContest(contestData);
 
-      const { data: cp } = await supabase
+      const { data: cp, error: problemsError } = await supabase
         .from("contest_problems")
         .select("order, problems(*)")
         .eq("contest_id", contestId)
-        .order("order", { ascending: true });
+        .order("order", { ascending: true })
+        .returns<{ order: number; problems: Problem | null }[]>();
 
-      setProblems((cp || []).map((row: any) => row.problems).filter(Boolean));
+      if (cancelled) return;
+      if (problemsError) {
+        setLoadError("콘테스트 문제를 불러올 수 없습니다.");
+        return;
+      }
+      setProblems((cp || []).flatMap((row) => row.problems ? [row.problems] : []));
     })();
+    return () => { cancelled = true; };
   }, [contestId]);
 
   useEffect(() => {
-    if (!currentProblem) return;
-    skipNextSave.current = true;
+    if (currentProblemId === undefined) return;
+    let cancelled = false;
 
     (async () => {
       const { data: tcs } = await supabase
         .from("test_cases")
         .select("*")
-        .eq("problem_id", currentProblem.id)
+        .eq("problem_id", currentProblemId)
         .eq("is_hidden", false)
         .order("id");
+      if (cancelled) return;
       setTestCases(tcs || []);
 
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session) return;
+      if (cancelled) return;
+      if (!session) {
+        setLoadError("로그인 후 콘테스트에 참가하세요.");
+        return;
+      }
 
-      const { data: draft } = await supabase
+      const { data: draft, error } = await supabase
         .from("contest_drafts")
         .select("code, language")
         .eq("contest_id", contestId)
-        .eq("problem_id", currentProblem.id)
+        .eq("problem_id", currentProblemId)
         .eq("user_id", session.user.id)
         .maybeSingle();
 
+      if (cancelled) return;
+      if (error) {
+        setLoadError("저장된 코드를 불러올 수 없습니다. 새로고침 후 다시 시도하세요.");
+        return;
+      }
       if (draft) {
         setCode(draft.code);
         setLanguage(draft.language);
@@ -130,53 +161,66 @@ export default function ContestWorkspace() {
         setLanguage("python");
         setCode(STARTER_CODE["python"]);
       }
+      setLoadedProblemId(currentProblemId);
+      setDirty(false);
+      setSaveState("idle");
+      setSubId(null);
+      setConsoleOutput(null);
     })();
-  }, [currentProblem?.id]);
+    return () => { cancelled = true; };
+  }, [currentProblemId, contestId]);
 
   useEffect(() => {
-    if (!currentProblem) return;
-    if (skipNextSave.current) {
-      skipNextSave.current = false;
-      return;
-    }
-
-    setSaveState("saving");
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    saveTimer.current = setTimeout(async () => {
+    if (!draftReady || !dirty) return;
+    let cancelled = false;
+    const timer = setTimeout(async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session) return;
-      await supabase.from("contest_drafts").upsert({
+      if (cancelled) return;
+      if (!session) {
+        setSaveState("error");
+        return;
+      }
+      const { error } = await supabase.from("contest_drafts").upsert({
         contest_id: Number(contestId),
-        problem_id: currentProblem.id,
+        problem_id: currentProblemId,
         user_id: session.user.id,
         code,
         language,
         updated_at: new Date().toISOString(),
       });
-      setSaveState("saved");
+      if (cancelled) return;
+      setSaveState(error ? "error" : "saved");
+      if (!error) setDirty(false);
     }, 1200);
 
     return () => {
-      if (saveTimer.current) clearTimeout(saveTimer.current);
+      cancelled = true;
+      clearTimeout(timer);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [code, language]);
+  }, [code, language, contestId, currentProblemId, draftReady, dirty, saveAttempt]);
+
+  const updateCode = (value: string) => {
+    if (!draftReady || value === code) return;
+    setCode(value);
+    setDirty(true);
+    setSaveState("saving");
+  };
 
   const phase: Phase | null = contest
     ? getPhase(contest.start_time, contest.end_time, now)
     : null;
 
   useEffect(() => {
-    if (phase !== "ongoing") return;
+    if (phase !== "ongoing" && !dirty) return;
     const handler = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
     };
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
-  }, [phase]);
+  }, [phase, dirty]);
 
   useEffect(() => {
     if (phase !== "ongoing") return;
@@ -191,71 +235,46 @@ export default function ContestWorkspace() {
     return () => window.removeEventListener("popstate", onPopState);
   }, [phase]);
 
-  const authHeaders = async () => {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
-    if (!session) throw new Error("로그인이 필요합니다.");
-    return {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${session.access_token}`,
-    };
-  };
-
   const handleTest = async () => {
-    if (!currentProblem) return;
+    if (!currentProblem || !draftReady || phase !== "ongoing") return;
     setIsTesting(true);
     setConsoleOutput("코드 실행 중...");
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${apiUrl}/test_run`, {
-        method: "POST",
-        headers: await authHeaders(),
-        body: JSON.stringify({ problem_id: currentProblem.id, language, code }),
-      });
-      const data = await response.json();
-      if (!response.ok || data.status === "error")
-        throw new Error(data.message || "서버 통신 에러");
-
-      const result = data.result;
+      const result = await testCode({ problem_id: currentProblem.id, language, code });
       let output = `최종 결과: ${statusLabel(result.status)}\n\n`;
-      (result.test_cases || []).forEach((tc: any, i: number) => {
+      (result.test_cases || []).forEach((tc, i) => {
         output += `[테스트케이스 ${i + 1}] - ${statusLabel(tc.status)}\n`;
         output += `입력값: ${tc.input.trim()}\n기댓값: ${tc.expected.trim()}\n실제값: ${tc.actual.trim()}\n------------------------\n`;
       });
       setConsoleOutput(output);
-    } catch (err: any) {
-      setConsoleOutput(`실행 오류: ${err.message}`);
+    } catch (err) {
+      setConsoleOutput(`실행 오류: ${errorMessage(err, "알 수 없는 오류")}`);
     } finally {
       setIsTesting(false);
     }
   };
 
   const handleSubmit = async () => {
-    if (!currentProblem) return;
+    if (!currentProblem || !draftReady || phase !== "ongoing") return;
     setIsSubmitting(true);
     setSubId(null);
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-      const response = await fetch(`${apiUrl}/submit`, {
-        method: "POST",
-        headers: await authHeaders(),
-        body: JSON.stringify({
+      setSubId(await submitCode({
           problem_id: currentProblem.id,
           language,
           code,
           contest_id: Number(contestId),
-        }),
-      });
-      if (!response.ok) throw new Error("서버 통신 에러");
-      const data = await response.json();
-      setSubId(data.submission_id);
-    } catch (err: any) {
-      alert(err.message || "오류가 발생했습니다.");
+      }));
+    } catch (err) {
+      alert(errorMessage(err, "오류가 발생했습니다."));
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  if (loadError) {
+    return <div role="alert" className="p-8 text-(--reject)">{loadError} <Link href="/contests">목록으로</Link></div>;
+  }
 
   if (!contest) {
     return (
@@ -322,7 +341,7 @@ export default function ContestWorkspace() {
         </div>
         <div className="flex items-center gap-6">
           <span className="docket-label text-[10px] text-(--text-faint) w-16 text-right">
-            {saveState === "saving"
+            {saveState === "error" ? <button onClick={() => { setSaveState("saving"); setSaveAttempt((value) => value + 1); }}>저장 실패 · 재시도</button> : saveState === "saving"
               ? "저장 중"
               : saveState === "saved"
                 ? "저장됨"
@@ -339,6 +358,7 @@ export default function ContestWorkspace() {
           {problems.map((p, i) => (
             <button
               key={p.id}
+              disabled={dirty || isTesting || isSubmitting}
               onClick={() => setActiveIdx(i)}
               className={clsx(
                 "docket-label text-[11px] px-4 py-2 border-b-2 transition-colors whitespace-nowrap",
@@ -418,7 +438,14 @@ export default function ContestWorkspace() {
           <div className="flex items-center justify-between px-4 py-2 bg-(--paper) border-b border-(--rule) shrink-0">
             <select
               value={language}
-              onChange={(e) => setLanguage(e.target.value)}
+              disabled={!draftReady}
+              onChange={(e) => {
+                const next = e.target.value;
+                if (Object.values(STARTER_CODE).includes(code)) setCode(STARTER_CODE[next]);
+                setLanguage(next);
+                setDirty(true);
+                setSaveState("saving");
+              }}
               className="bg-(--rule) text-(--text) text-xs font-medium border border-(--rule-strong) rounded-sm px-3 py-1.5 focus:outline-none focus:border-(--seal)"
             >
               <option value="python">Python 3</option>
@@ -430,14 +457,14 @@ export default function ContestWorkspace() {
             <div className="flex gap-2">
               <button
                 onClick={handleTest}
-                disabled={isTesting}
+                disabled={isTesting || !draftReady}
                 className="docket-label text-[11px] px-4 py-1.5 bg-(--rule) hover:bg-(--rule-strong) text-(--text) transition-colors disabled:opacity-50"
               >
                 테스트
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={isSubmitting}
+                disabled={isSubmitting || !draftReady}
                 className="docket-label text-[11px] px-4 py-1.5 bg-(--seal) hover:bg-(--seal-dim) text-(--ink) font-semibold transition-colors disabled:opacity-50"
               >
                 제출
@@ -451,8 +478,9 @@ export default function ContestWorkspace() {
               language={MONACO_LANGUAGE[language] ?? "plaintext"}
               theme="vs-dark"
               value={code}
-              onChange={(val) => setCode(val || "")}
+              onChange={(val) => updateCode(val || "")}
               options={{
+                readOnly: !draftReady,
                 minimap: { enabled: false },
                 fontSize: 14,
                 fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
