@@ -21,7 +21,7 @@ export default function ProblemContent({
 }: ProblemContentProps) {
   return (
     <div
-      className={`prose prose-invert max-w-none
+      className={`prose max-w-none
         prose-p:text-slate-300 prose-p:leading-relaxed
         prose-li:text-slate-300
         prose-code:text-emerald-300 prose-code:bg-slate-800 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded prose-code:text-sm prose-code:font-mono

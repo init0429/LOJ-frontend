@@ -1,31 +1,31 @@
 @import "tailwindcss";
 
 :root {
-  color-scheme: dark;
-  --ink: #172c43;
-  --paper: #203a55;
-  --paper-raised: #294661;
-  --rule: #3f5b76;
-  --rule-strong: #6c88a2;
+  color-scheme: light;
+  --ink: #f3f6f5;
+  --paper: #ffffff;
+  --paper-raised: #eaf0ed;
+  --rule: #d6dfda;
+  --rule-strong: #aabcb2;
 
-  --text: #eff5fa;
-  --text-dim: #bdcddd;
-  --text-faint: #a4b9cc;
+  --text: #1c3027;
+  --text-dim: #465e52;
+  --text-faint: #5b7065;
 
-  --seal: #b8d5f0;
-  --seal-dim: #97bedf;
+  --seal: #216349;
+  --seal-dim: #174e38;
 
-  --accept: #8dd8bb;
+  --accept: #236b45;
   --accept-dim: #3a7546;
-  --reject: #ffa99f;
+  --reject: #b0353c;
   --reject-dim: #8c2e28;
-  --pending: #edd095;
+  --pending: #806014;
 
-  --sev-1: #8dd8bb;
-  --sev-2: #b6d69b;
-  --sev-3: #edd095;
-  --sev-4: #f2b38c;
-  --sev-5: #ffa99f;
+  --sev-1: #236b45;
+  --sev-2: #546722;
+  --sev-3: #806014;
+  --sev-4: #a34a20;
+  --sev-5: #b0353c;
 }
 
 @theme inline {
@@ -82,7 +82,7 @@ button:disabled {
   align-items: center;
   gap: clamp(32px, 7vw, 100px);
   padding: clamp(28px, 6vw, 88px);
-  background: radial-gradient(ellipse at 0% 0%, #294661, transparent 65%);
+  background: radial-gradient(ellipse at 0% 0%, var(--paper-raised), transparent 65%);
 }
 .landing-title {
   font-size: clamp(36px, 4.8vw, 64px);

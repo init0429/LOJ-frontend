@@ -476,7 +476,7 @@ export default function ContestWorkspace() {
             <Editor
               height="100%"
               language={MONACO_LANGUAGE[language] ?? "plaintext"}
-              theme="vs-dark"
+              theme="light"
               value={code}
               onChange={(val) => updateCode(val || "")}
               options={{
@@ -490,7 +490,7 @@ export default function ContestWorkspace() {
             />
           </div>
 
-          <div className="h-44 shrink-0 border-t border-(--rule) bg-[#0d1117] flex flex-col">
+          <div className="h-44 shrink-0 border-t border-(--rule) bg-(--ink) flex flex-col">
             <div className="px-4 py-2 border-b border-(--rule) flex items-center gap-2">
               {subId && (
                 <StampTag

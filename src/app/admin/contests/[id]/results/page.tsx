@@ -390,7 +390,7 @@ export default function ContestResultsPage() {
                     language={
                       MONACO_LANGUAGE[currentAttempt.language] ?? "plaintext"
                     }
-                    theme="vs-dark"
+                    theme="light"
                     value={currentAttempt.code}
                     options={{
                       readOnly: true,

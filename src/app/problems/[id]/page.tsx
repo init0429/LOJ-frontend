@@ -187,7 +187,7 @@ export default function ProblemWorkspace() {
         <div className="flex items-center gap-4">
           <button
             onClick={() => router.push("/problems")}
-            className="text-(--text-dim) hover:text-white transition-colors flex items-center gap-1 bg-(--rule) hover:bg-(--rule-strong) px-3 py-1.5 rounded-sm text-sm"
+            className="text-(--text-dim) hover:text-(--text) transition-colors flex items-center gap-1 bg-(--rule) hover:bg-(--rule-strong) px-3 py-1.5 rounded-sm text-sm"
           >
             <ChevronLeft size={16} /> 목록
           </button>
@@ -254,7 +254,7 @@ export default function ProblemWorkspace() {
 
             <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-(--rule-strong)">
               {activeLeftTab === "description" && (
-                <div className="prose prose-invert max-w-none">
+                <div className="prose max-w-none">
                   <h2 className="text-2xl font-bold mb-4">{problem.title}</h2>
                   <div className="flex gap-3 mb-6 text-xs font-medium flex-wrap">
                     <span
@@ -390,7 +390,7 @@ export default function ProblemWorkspace() {
               <Panel
                 defaultSize={50}
                 minSize={20}
-                className="bg-[#1e1e1e] flex flex-col relative"
+                className="bg-(--paper) flex flex-col relative"
               >
                 <div className="absolute top-2 left-4 z-10">
                   <select
@@ -410,7 +410,7 @@ export default function ProblemWorkspace() {
                   <Editor
                     height="100%"
                     language={MONACO_LANGUAGE[language] ?? "plaintext"}
-                    theme="vs-dark"
+                    theme="light"
                     value={code}
                     onChange={(val) => setCode(val || "")}
                     options={{
@@ -457,7 +457,7 @@ export default function ProblemWorkspace() {
                     </button>
                   ))}
                 </div>
-                <div className="flex-1 p-4 font-mono text-sm overflow-auto scrollbar-thin scrollbar-thumb-(--rule-strong) bg-[#0d1117]">
+                <div className="flex-1 p-4 font-mono text-sm overflow-auto scrollbar-thin scrollbar-thumb-(--rule-strong) bg-(--ink)">
                   {activeConsoleTab === "testcases" && (
                     <div className="text-(--text-dim) space-y-6">
                       {testCases.map((tc, idx) => (
