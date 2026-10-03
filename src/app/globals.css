@@ -139,6 +139,19 @@ button:disabled {
 }
 .data-surface { overflow-x: auto; border: 1px solid var(--rule); border-radius: 10px; background: var(--paper); }
 .data-surface table { min-width: 620px; }
+.workspace-mobile-switch { display: none; }
+@media (max-width: 767px) {
+  .workspace-mobile-switch { display: flex; padding: 8px; gap: 8px; }
+  .workspace-mobile-switch button { flex: 1; padding: 8px; border-radius: 6px; color: var(--text-dim); }
+  .workspace-mobile-switch button[aria-pressed="true"] { background: var(--paper-raised); color: var(--text); }
+  .problem-workspace .workspace-panels { display: block !important; }
+  .problem-workspace .workspace-divider { display: none; }
+  .problem-workspace .workspace-description,
+  .problem-workspace .workspace-code { width: 100%; height: 100%; }
+  .problem-workspace[data-mobile-pane="description"] .workspace-code,
+  .problem-workspace[data-mobile-pane="code"] .workspace-description { display: none; }
+  .workspace-header { justify-content: center; }
+}
 @media (max-width: 767px) {
   .landing { grid-template-columns: minmax(0, 1fr); padding: 32px 20px; }
 }

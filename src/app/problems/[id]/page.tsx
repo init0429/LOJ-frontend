@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Editor from "@monaco-editor/react";
@@ -42,6 +42,11 @@ const statusTone = (status: string): StampTone => {
 };
 
 export default function ProblemWorkspace() {
+  const params = useParams();
+  return <ProblemWorkspaceContent key={String(params.id)} />;
+}
+
+function ProblemWorkspaceContent() {
   const { theme } = useTheme();
   const params = useParams();
   const router = useRouter();
@@ -52,22 +57,25 @@ export default function ProblemWorkspace() {
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [history, setHistory] = useState<Submission[]>([]);
   const [activeLeftTab, setActiveLeftTab] = useState<
-    "description" | "result" | "history"
+    "description" | "history"
   >("description");
   const [activeConsoleTab, setActiveConsoleTab] = useState<
-    "testcases" | "result"
+    "testcases" | "result" | "submission"
   >("testcases");
 
   const [code, setCode] = useState(STARTER_CODE["python"]);
   const [language, setLanguage] = useState("python");
+  const drafts = useRef<Record<string, string>>({});
+  const [mobilePane, setMobilePane] = useState<"description" | "code">("description");
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [caseIndex, setCaseIndex] = useState(0);
+  const requestBusy = useRef(false);
 
   const handleLanguageChange = (newLanguage: string) => {
-    // 아직 기본 템플릿 그대로인 경우에만 새 언어의 템플릿으로 교체.
-    // 사용자가 이미 코드를 작성했다면 언어를 바꿔도 코드는 그대로 둠.
-    const isUntouched = Object.values(STARTER_CODE).includes(code);
-    if (isUntouched) {
-      setCode(STARTER_CODE[newLanguage] ?? "");
-    }
+    drafts.current[language] = code;
+    setCode(drafts.current[newLanguage] ?? STARTER_CODE[newLanguage] ?? "");
     setLanguage(newLanguage);
   };
 
@@ -107,23 +115,43 @@ export default function ProblemWorkspace() {
   }, [problemId]);
 
   useEffect(() => {
+    let cancelled = false;
     if (activeLeftTab === "history" && problemId) {
       const fetchHistory = async () => {
-        const { data } = await supabase
+        const { data: { session } } = await supabase.auth.getSession();
+        if (cancelled) return;
+        setHistoryLoading(true);
+        setHistoryError(null);
+        if (!session) {
+          setHistory([]);
+          setHistoryError("로그인하면 내 제출 기록을 확인할 수 있습니다.");
+          setHistoryLoading(false);
+          return;
+        }
+        const { data, error } = await supabase
           .from("submissions")
-          .select("*")
+          .select("id, status, language, created_at")
           .eq("problem_id", problemId)
+          .eq("user_id", session.user.id)
           .order("created_at", { ascending: false });
-        if (data) setHistory(data);
+        if (cancelled) return;
+        setHistory(data ?? []);
+        if (error) setHistoryError("제출 기록을 불러오지 못했습니다. 탭을 다시 열어 주세요.");
+        setHistoryLoading(false);
       };
       fetchHistory();
     }
-  }, [activeLeftTab, problemId]);
+    return () => { cancelled = true; };
+  }, [activeLeftTab, problemId, status]);
 
   const handleSubmit = async () => {
+    if (requestBusy.current || !code.trim()) return;
+    requestBusy.current = true;
     setIsSubmitting(true);
+    setSubmitError(null);
     setSubId(null);
-    setActiveLeftTab("result");
+    setActiveConsoleTab("submission");
+    setMobilePane("code");
 
     try {
       setSubId(await submitCode({
@@ -132,15 +160,19 @@ export default function ProblemWorkspace() {
           code,
       }));
     } catch (err) {
-      alert(errorMessage(err, "오류가 발생했습니다."));
+      setSubmitError(errorMessage(err, "제출하지 못했습니다. 다시 시도하세요."));
     } finally {
       setIsSubmitting(false);
+      requestBusy.current = false;
     }
   };
 
   const handleTest = async () => {
+    if (requestBusy.current || !code.trim()) return;
+    requestBusy.current = true;
     setIsTesting(true);
     setActiveConsoleTab("result");
+    setMobilePane("code");
     setTestResult("코드 실행 중...");
 
     try {
@@ -168,11 +200,12 @@ export default function ProblemWorkspace() {
       setTestResult(`실행 오류: ${errorMessage(err, "알 수 없는 오류")}`);
     } finally {
       setIsTesting(false);
+      requestBusy.current = false;
     }
   };
 
   if (loadError) {
-    return <div role="alert" className="p-8 text-(--reject)">{loadError}</div>;
+    return <div role="alert" className="p-8 text-(--reject)">{loadError}<button className="block mt-4 underline" onClick={() => router.push("/problems")}>문제 목록으로 돌아가기</button></div>;
   }
 
   if (!problem) {
@@ -184,10 +217,10 @@ export default function ProblemWorkspace() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-(--ink) text-(--text) overflow-hidden font-sans">
+    <div className="problem-workspace h-dvh flex flex-col bg-(--ink) text-(--text) overflow-hidden font-sans" data-mobile-pane={mobilePane}>
       {/* Workspace Header */}
-      <header className="h-14 bg-(--paper) border-b border-(--rule) flex items-center justify-between px-4 shrink-0">
-        <div className="flex items-center gap-4">
+      <header className="workspace-header bg-(--paper) border-b border-(--rule) flex flex-wrap gap-3 items-center justify-between px-3 py-2 shrink-0">
+        <div className="flex min-w-0 items-center gap-3">
           <button
             onClick={() => router.push("/problems")}
             className="text-(--text-dim) hover:text-(--text) transition-colors flex items-center gap-1 bg-(--rule) hover:bg-(--rule-strong) px-3 py-1.5 rounded-sm text-sm"
@@ -198,7 +231,7 @@ export default function ProblemWorkspace() {
             <span className="docket-label text-(--seal) bg-(--seal)/10 px-2 py-0.5 text-xs">
               № {String(problem.id).padStart(3, "0")}
             </span>
-            <h1 className="font-semibold text-(--text)">
+            <h1 className="font-semibold text-(--text) truncate max-w-[40vw]">
               {problem.title}
             </h1>
           </div>
@@ -207,42 +240,46 @@ export default function ProblemWorkspace() {
           <ThemeToggle />
           <button
             onClick={handleTest}
-            disabled={isTesting}
+            disabled={isTesting || isSubmitting || !code.trim()}
             className="flex items-center gap-2 bg-(--rule) hover:bg-(--rule-strong) text-(--text) px-4 py-1.5 rounded-sm font-medium transition-colors disabled:opacity-50 text-sm"
           >
             <Play size={14} className={isTesting ? "animate-pulse" : ""} />{" "}
-            테스트
+            {isTesting ? "실행 중..." : "실행"}
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isTesting || !code.trim() || status === "Pending" || status === "Running"}
             className="flex items-center gap-2 bg-(--seal) hover:bg-(--seal-dim) text-(--ink) px-5 py-1.5 rounded-sm font-semibold transition-colors disabled:opacity-50 text-sm"
           >
-            <Send size={14} /> 제출
+            <Send size={14} /> {isSubmitting ? "제출 중..." : status === "Pending" || status === "Running" ? "채점 중..." : "제출"}
           </button>
         </div>
       </header>
+      <div className="workspace-mobile-switch" aria-label="작업 영역 선택">
+        <button aria-pressed={mobilePane === "description"} onClick={() => setMobilePane("description")}>문제 읽기</button>
+        <button aria-pressed={mobilePane === "code"} onClick={() => setMobilePane("code")}>코드 작성 · 결과</button>
+      </div>
 
       {/* Resizable Workspace */}
       <div className="flex-1 overflow-hidden p-2 gap-2 flex">
         <PanelGroup
           orientation="horizontal"
-          className="w-full h-full rounded-sm overflow-hidden border border-(--rule) shadow-2xl"
+          className="workspace-panels w-full h-full overflow-hidden"
         >
           {/* Left Pane (Description/Result) */}
           <Panel
-            defaultSize={50}
-            minSize={25}
-            className="bg-(--paper) flex flex-col"
+            defaultSize="45%"
+            minSize="25%"
+            className="workspace-description bg-(--paper) flex flex-col rounded-lg border border-(--rule)"
           >
             <div className="flex bg-(--paper) border-b border-(--rule) pt-2 px-2 gap-1 overflow-x-auto no-scrollbar shrink-0">
               {([
                 { id: "description", label: "문제 설명" },
-                { id: "result", label: "채점 결과" },
-                { id: "history", label: "제출 현황" },
+                { id: "history", label: "내 제출 기록" },
               ] as const).map((tab) => (
                 <button
                   key={tab.id}
+                  aria-pressed={activeLeftTab === tab.id}
                   onClick={() => setActiveLeftTab(tab.id)}
                   className={clsx(
                     "px-4 py-2 text-sm font-medium rounded-t-sm transition-colors whitespace-nowrap",
@@ -314,45 +351,12 @@ export default function ProblemWorkspace() {
                 </div>
               )}
 
-              {activeLeftTab === "result" && (
-                <div className="flex flex-col items-center justify-center h-full">
-                  {!subId ? (
-                    <div className="text-(--text-faint) flex flex-col items-center gap-3">
-                      <Send size={48} className="text-(--rule-strong)" />
-                      <p>아직 제출한 코드가 없습니다.</p>
-                    </div>
-                  ) : (
-                    <div className="text-center bg-(--paper) p-8 border border-(--rule) max-w-sm w-full">
-                      <h3 className="docket-label text-xs text-(--text-faint) mb-6">
-                        심사 결과
-                      </h3>
-                      <div className="flex flex-col items-center gap-5">
-                        {status === "Pending" || status === "Running" ? (
-                          <div className="animate-spin rounded-full h-14 w-14 border-t-4 border-b-4 border-(--rule-strong) border-t-(--pending)"></div>
-                        ) : (
-                          <StampTag
-                            label={statusLabel(status)}
-                            tone={statusTone(status)}
-                            size="lg"
-                          />
-                        )}
-                        {(status === "Pending" || status === "Running") && (
-                          <div className="docket-label text-sm text-(--pending)">
-                            {statusLabel(status)}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
               {activeLeftTab === "history" && (
                 <div className="flex flex-col gap-3">
                   <h3 className="text-lg font-bold text-(--text) mb-2">
-                    제출 현황
+                    내 제출 기록
                   </h3>
-                  {history.length === 0 ? (
+                  {historyLoading ? <p role="status">제출 기록을 불러오는 중...</p> : historyError ? <p role="alert" className="text-(--reject)">{historyError}</p> : history.length === 0 ? (
                     <div className="text-(--text-faint) text-center mt-10">
                       제출 내역이 없습니다.
                     </div>
@@ -385,19 +389,21 @@ export default function ProblemWorkspace() {
           </Panel>
 
           {/* Vertical Handle */}
-          <PanelResizeHandle className="w-2 bg-(--ink) hover:bg-(--seal)/20 transition-colors cursor-col-resize" />
+          <PanelResizeHandle className="workspace-divider w-2 bg-(--ink) hover:bg-(--seal)/20 transition-colors cursor-col-resize" />
 
           {/* Right Pane (Editor & Console) */}
-          <Panel defaultSize={50} minSize={30}>
+          <Panel defaultSize="55%" minSize="30%" className="workspace-code">
             <PanelGroup orientation="vertical">
               {/* Editor Top Pane */}
               <Panel
-                defaultSize={50}
-                minSize={20}
-                className="bg-(--paper) flex flex-col relative"
+                defaultSize="65%"
+                minSize="25%"
+                className="bg-(--paper) flex flex-col rounded-lg border border-(--rule)"
               >
-                <div className="absolute top-2 left-4 z-10">
+                <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-(--rule)">
+                  <span className="text-sm font-semibold">코드</span>
                   <select
+                    aria-label="프로그래밍 언어"
                     value={language}
                     onChange={(e) => handleLanguageChange(e.target.value)}
                     className="bg-(--rule) text-(--text) text-xs font-medium border border-(--rule-strong) rounded-md px-3 py-1.5 focus:outline-none focus:border-(--seal) hover:bg-(--rule-strong) transition-colors cursor-pointer"
@@ -410,7 +416,7 @@ export default function ProblemWorkspace() {
                   </select>
                 </div>
 
-                <div className="flex-1 pt-12">
+                <div className="flex-1 min-h-0">
                   <Editor
                     height="100%"
                     language={MONACO_LANGUAGE[language] ?? "plaintext"}
@@ -425,6 +431,8 @@ export default function ProblemWorkspace() {
                       scrollBeyondLastLine: false,
                       smoothScrolling: true,
                       cursorBlinking: "smooth",
+                      automaticLayout: true,
+                      tabSize: 4,
                     }}
                   />
                 </div>
@@ -435,17 +443,19 @@ export default function ProblemWorkspace() {
 
               {/* Console Bottom Pane */}
               <Panel
-                defaultSize={50}
-                minSize={10}
-                className="bg-(--paper) flex flex-col border-t border-(--rule)"
+                defaultSize="35%"
+                minSize="20%"
+                className="bg-(--paper) flex flex-col rounded-lg border border-(--rule)"
               >
                 <div className="flex bg-(--paper) border-b border-(--rule) px-2 pt-2 gap-1 shrink-0">
                   {([
-                    { id: "testcases", label: "Testcases" },
-                    { id: "result", label: "Test Result" },
+                    { id: "testcases", label: "예제" },
+                    { id: "result", label: "실행 결과" },
+                    { id: "submission", label: "채점 결과" },
                   ] as const).map((tab) => (
                     <button
                       key={tab.id}
+                      aria-pressed={activeConsoleTab === tab.id}
                       onClick={() => setActiveConsoleTab(tab.id)}
                       className={clsx(
                         "px-4 py-1.5 text-xs font-medium rounded-t-sm transition-colors flex items-center gap-1.5",
@@ -464,19 +474,19 @@ export default function ProblemWorkspace() {
                 <div className="flex-1 p-4 font-mono text-sm overflow-auto scrollbar-thin scrollbar-thumb-(--rule-strong) bg-(--ink)">
                   {activeConsoleTab === "testcases" && (
                     <div className="text-(--text-dim) space-y-6">
-                      {testCases.map((tc, idx) => (
-                        <div key={tc.id || idx}>
-                          <h4 className="text-(--seal) font-semibold mb-2">
-                            Test Case {idx + 1}
-                          </h4>
+                      <div className="flex gap-2 flex-wrap" aria-label="예제 선택">
+                        {testCases.map((tc, idx) => <button key={tc.id} className={clsx("px-3 py-1 rounded-md border", caseIndex === idx ? "border-(--seal) text-(--text) bg-(--paper-raised)" : "border-(--rule)")} aria-pressed={caseIndex === idx} onClick={() => setCaseIndex(idx)}>예제 {idx + 1}</button>)}
+                      </div>
+                      {testCases.slice(caseIndex, caseIndex + 1).map((tc) => (
+                        <div key={tc.id}>
                           <p className="mb-2 font-semibold text-(--text)">
-                            Input:
+                            입력
                           </p>
                           <div className="bg-(--rule)/50 p-2 rounded border border-(--rule-strong)/50 text-(--text) mb-4 whitespace-pre-wrap">
                             {tc.input_data}
                           </div>
                           <p className="mb-2 font-semibold text-(--text)">
-                            Expected Output:
+                            예상 출력
                           </p>
                           <div className="bg-(--rule)/50 p-2 rounded border border-(--rule-strong)/50 text-(--text) whitespace-pre-wrap">
                             {tc.expected_output}
@@ -491,13 +501,17 @@ export default function ProblemWorkspace() {
                     </div>
                   )}
                   {activeConsoleTab === "result" && (
-                    <div className="text-(--text) whitespace-pre-wrap">
+                    <div role="status" className="text-(--text) whitespace-pre-wrap">
                       {testResult || (
                         <span className="text-(--text-faint) italic">
-                          &quot;테스트&quot; 버튼을 눌러 결과를 확인하세요. (제출 시에는
-                          이 콘솔에 반영되지 않습니다)
+                          실행을 누르면 공개된 예제로 코드를 테스트합니다. 제출하면 비공개 테스트를 포함해 채점합니다.
                         </span>
                       )}
+                    </div>
+                  )}
+                  {activeConsoleTab === "submission" && (
+                    <div role="status" className="space-y-4 font-sans">
+                      {submitError ? <p role="alert" className="text-(--reject)">{submitError}</p> : isSubmitting ? <p>코드를 제출하는 중...</p> : subId ? <><StampTag label={statusLabel(status)} tone={statusTone(status)} /><p className="text-sm text-(--text-dim)">{status === "Pending" || status === "Running" ? "채점 중입니다. 다른 영역에서 풀이를 계속 살펴볼 수 있습니다." : "채점이 완료되었습니다. 내 제출 기록에서 이전 결과를 확인하세요."}</p></> : <p>코드를 작성한 뒤 제출을 눌러 채점 결과를 확인하세요.</p>}
                     </div>
                   )}
                 </div>
