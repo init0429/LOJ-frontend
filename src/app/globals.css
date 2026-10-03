@@ -110,7 +110,6 @@ button:disabled {
   align-items: center;
   gap: clamp(32px, 7vw, 100px);
   padding: clamp(28px, 6vw, 88px);
-  background: radial-gradient(ellipse at 0% 0%, var(--paper-raised), transparent 65%);
 }
 .landing-title {
   font-size: clamp(36px, 4.8vw, 64px);
