@@ -8,6 +8,7 @@ import { ChevronLeft, X } from "lucide-react";
 import clsx from "clsx";
 import StampTag, { StampTone, statusLabel } from "@/components/StampTag";
 import Editor from "@monaco-editor/react";
+import { useTheme } from "@/hooks/useTheme";
 import { MONACO_LANGUAGE } from "@/lib/languages";
 import type { Contest } from "@/lib/types";
 
@@ -39,6 +40,7 @@ const statusTone = (status: string): StampTone => {
 };
 
 export default function ContestResultsPage() {
+  const { theme } = useTheme();
   const params = useParams();
   const router = useRouter();
   const contestId = params.id as string;
@@ -390,7 +392,7 @@ export default function ContestResultsPage() {
                     language={
                       MONACO_LANGUAGE[currentAttempt.language] ?? "plaintext"
                     }
-                    theme="light"
+                    theme={theme === "dark" ? "vs-dark" : "light"}
                     value={currentAttempt.code}
                     options={{
                       readOnly: true,

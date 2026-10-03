@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Editor from "@monaco-editor/react";
+import ThemeToggle from "@/components/ThemeToggle";
+import { useTheme } from "@/hooks/useTheme";
 import { useSubmissionState } from "@/hooks/useSubmissionState";
 import { Play, Send, ChevronLeft } from "lucide-react";
 import clsx from "clsx";
@@ -40,6 +42,7 @@ const statusTone = (status: string): StampTone => {
 };
 
 export default function ProblemWorkspace() {
+  const { theme } = useTheme();
   const params = useParams();
   const router = useRouter();
   const problemId = params.id as string;
@@ -201,6 +204,7 @@ export default function ProblemWorkspace() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          <ThemeToggle />
           <button
             onClick={handleTest}
             disabled={isTesting}
@@ -410,7 +414,7 @@ export default function ProblemWorkspace() {
                   <Editor
                     height="100%"
                     language={MONACO_LANGUAGE[language] ?? "plaintext"}
-                    theme="light"
+                    theme={theme === "dark" ? "vs-dark" : "light"}
                     value={code}
                     onChange={(val) => setCode(val || "")}
                     options={{

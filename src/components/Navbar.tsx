@@ -7,6 +7,7 @@ import { Scale, LogOut, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 import clsx from "clsx";
 import type { Session } from "@supabase/supabase-js";
+import ThemeToggle from "@/components/ThemeToggle";
 
 const NAV_ITEMS = [
   { href: "/problems", label: "사건 목록" },
@@ -110,7 +111,8 @@ export default function Navbar() {
         </div>
       </div>
 
-      <div>
+      <div className="flex items-center gap-3">
+        <ThemeToggle />
         {session ? (
           <div className="flex items-center gap-4">
             <div className="flex items-center gap-2 text-sm text-(--text-dim) bg-(--paper-raised) border border-(--rule) px-3 py-1.5 rounded-sm">

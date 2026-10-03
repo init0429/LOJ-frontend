@@ -28,6 +28,34 @@
   --sev-5: #b0353c;
 }
 
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --ink: #14221c;
+  --paper: #1c3027;
+  --paper-raised: #284135;
+  --rule: #3a5346;
+  --rule-strong: #688374;
+  --text: #edf4ef;
+  --text-dim: #c1d2c7;
+  --text-faint: #a5bbae;
+  --seal: #a2d6b5;
+  --seal-dim: #88c39e;
+  --accept: #95d9ad;
+  --accept-dim: #78bf92;
+  --reject: #ffa9ae;
+  --reject-dim: #ed9097;
+  --pending: #e7ce91;
+  --sev-1: #95d9ad;
+  --sev-2: #c2d99b;
+  --sev-3: #e7ce91;
+  --sev-4: #f2b38c;
+  --sev-5: #ffa9ae;
+}
+
+.theme-sun { display: none; }
+:root[data-theme="dark"] .theme-sun { display: block; }
+:root[data-theme="dark"] .theme-moon { display: none; }
+
 @theme inline {
   --font-sans: "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 }

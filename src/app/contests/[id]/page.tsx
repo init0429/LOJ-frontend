@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import Editor from "@monaco-editor/react";
+import ThemeToggle from "@/components/ThemeToggle";
+import { useTheme } from "@/hooks/useTheme";
 import { useSubmissionState } from "@/hooks/useSubmissionState";
 import { Scale } from "lucide-react";
 import clsx from "clsx";
@@ -50,6 +52,7 @@ function formatCountdown(ms: number) {
 }
 
 export default function ContestWorkspace() {
+  const { theme } = useTheme();
   const params = useParams();
   const contestId = params.id as string;
 
@@ -340,6 +343,7 @@ export default function ContestWorkspace() {
           </span>
         </div>
         <div className="flex items-center gap-6">
+          <ThemeToggle />
           <span className="docket-label text-[10px] text-(--text-faint) w-16 text-right">
             {saveState === "error" ? <button onClick={() => { setSaveState("saving"); setSaveAttempt((value) => value + 1); }}>저장 실패 · 재시도</button> : saveState === "saving"
               ? "저장 중"
@@ -476,7 +480,7 @@ export default function ContestWorkspace() {
             <Editor
               height="100%"
               language={MONACO_LANGUAGE[language] ?? "plaintext"}
-              theme="light"
+              theme={theme === "dark" ? "vs-dark" : "light"}
               value={code}
               onChange={(val) => updateCode(val || "")}
               options={{

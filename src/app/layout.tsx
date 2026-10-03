@@ -29,8 +29,12 @@ export default function RootLayout({
   return (
     <html
       lang="ko"
+      suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var t;try{t=localStorage.getItem('loj-theme')}catch(e){}if(t!=='light'&&t!=='dark')t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t})()` }} />
+      </head>
       <body className="min-h-full flex flex-col bg-(--ink) text-(--text)">
         <a className="skip-link" href="#main-content">본문으로 건너뛰기</a>
         <Navbar />
