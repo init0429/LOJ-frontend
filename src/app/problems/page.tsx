@@ -103,26 +103,22 @@ export default function ProblemsPage() {
   return (
     <div className="flex-1 py-12 px-4 sm:px-6 lg:px-8 bg-(--ink)">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8 flex items-end justify-between border-b border-(--rule) pb-4">
+        <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end justify-between pb-4">
           <div>
-            <div className="docket-label text-[11px] text-(--text-faint) mb-1">
-              Docket
-            </div>
-            <h1 className="text-3xl font-semibold text-(--text)">
+            <h1 className="page-heading">
               사건 목록
             </h1>
+            <p className="mt-2 text-sm text-(--text-dim)">문제를 선택하고 나만의 풀이를 작성하세요.</p>
           </div>
           <div className="flex gap-2">
             <input
               type="text"
+              aria-label="사건번호 또는 문제 제목 검색"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="사건번호 · 제목 검색"
-              className="px-4 py-2 bg-(--paper) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-sm text-(--text) placeholder-(--text-faint)"
+              className="w-full sm:w-72 px-4 py-3 bg-(--paper) border border-(--rule) rounded-lg text-sm text-(--text) placeholder-(--text-faint)"
             />
-            <button className="docket-label text-[11px] px-4 py-2 bg-(--paper) hover:bg-(--paper-raised) border border-(--rule) rounded-sm transition-colors text-(--text-dim)">
-              필터
-            </button>
           </div>
         </div>
 
@@ -131,7 +127,7 @@ export default function ProblemsPage() {
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-(--seal)"></div>
           </div>
         ) : (
-          <div className="bg-(--paper) border border-(--rule) overflow-hidden">
+          <div className="data-surface">
             <table className="w-full text-left text-sm text-(--text)">
               <thead className="bg-(--paper-raised) docket-label text-[10px] text-(--text-dim) border-b border-(--rule)">
                 <tr>

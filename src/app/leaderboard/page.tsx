@@ -84,12 +84,9 @@ export default function LeaderboardPage() {
       <div className="max-w-5xl mx-auto">
         {/* Header Section */}
         <div className="mb-10 border-b border-(--rule) pb-6">
-          <div className="docket-label text-[11px] text-(--text-faint) mb-1">
-            Register
-          </div>
-          <h1 className="text-3xl font-semibold text-(--text)">명부</h1>
+            <h1 className="page-heading">명부</h1>
           <p className="text-(--text-dim) mt-1">
-            사건을 가장 많이 해결한 순서로 정리된 기록입니다.
+            해결한 문제의 난이도 점수를 기준으로 정리한 순위입니다.
           </p>
         </div>
 
@@ -101,6 +98,7 @@ export default function LeaderboardPage() {
           />
           <input
             type="text"
+            aria-label="참가자 이름 검색"
             placeholder="이름으로 조회"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -114,7 +112,7 @@ export default function LeaderboardPage() {
             <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-(--seal)"></div>
           </div>
         ) : (
-          <div className="bg-(--paper) border border-(--rule) overflow-hidden">
+          <div className="data-surface">
             <table className="w-full text-left border-collapse">
               <thead className="bg-(--paper-raised) border-b border-(--rule) docket-label text-[10px] text-(--text-dim)">
                 <tr>

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Calendar, Clock, ChevronRight } from "lucide-react";
 import clsx from "clsx";
 import StampTag, { StampTone } from "@/components/StampTag";
@@ -31,14 +31,13 @@ const PHASE_META: Record<
 > = {
   ongoing: { label: "심리 중", tone: "reject", action: "참가하기" },
   upcoming: { label: "예정", tone: "pending", action: "일정 확인" },
-  past: { label: "종결", tone: "neutral", action: "판결문 보기" },
+   past: { label: "종결", tone: "neutral", action: "종료된 대회 확인" },
 };
 
 export default function ContestsPage() {
   const [activeTab, setActiveTab] = useState<"all" | Phase>("all");
   const [contests, setContests] = useState<Contest[]>([]);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
   const [now, setNow] = useState(0);
 
   useEffect(() => {
@@ -71,10 +70,7 @@ export default function ContestsPage() {
         {/* Header Section */}
         <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6 border-b border-(--rule) pb-6">
           <div>
-            <div className="docket-label text-[11px] text-(--text-faint) mb-1">
-              Docket Calendar
-            </div>
-            <h1 className="text-3xl font-semibold text-(--text)">
+            <h1 className="page-heading">
               심리 일정
             </h1>
             <p className="text-(--text-dim) mt-1">
@@ -124,10 +120,10 @@ export default function ContestsPage() {
                 const phase = getPhase(contest, now);
                 const meta = PHASE_META[phase];
                 return (
-                  <div
+                  <Link
                     key={contest.id}
-                    onClick={() => router.push(`/contests/${contest.id}`)}
-                    className="group bg-(--paper) border border-(--rule) hover:border-(--rule-strong) p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 transition-colors border-l-2 border-l-transparent hover:border-l-(--seal) cursor-pointer"
+                    href={`/contests/${contest.id}`}
+                    className="group bg-(--paper) rounded-xl border border-(--rule) hover:border-(--seal) p-6 flex flex-col md:flex-row md:items-center justify-between gap-6"
                   >
                     <div className="flex-1">
                       <div className="flex items-center gap-3 mb-3">
@@ -175,7 +171,7 @@ export default function ContestsPage() {
                     </div>
 
                     <div className="flex items-center gap-4">
-                      <button
+                      <span
                         className={clsx(
                           "docket-label text-[11px] px-5 py-2.5 flex items-center gap-2 transition-colors",
                           phase === "ongoing"
@@ -185,9 +181,9 @@ export default function ContestsPage() {
                       >
                         {meta.action}
                         <ChevronRight size={14} />
-                      </button>
+                      </span>
                     </div>
-                  </div>
+                  </Link>
                 );
               })
             )}

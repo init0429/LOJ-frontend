@@ -50,7 +50,7 @@ export default function StampTag({
   label,
   tone,
   size = "md",
-  tilt = true,
+  tilt = false,
 }: {
   label: string;
   tone: StampTone;
@@ -62,22 +62,19 @@ export default function StampTag({
     size === "lg"
       ? "text-sm px-4 py-1.5"
       : size === "sm"
-        ? "text-[10px] px-2 py-0.5"
+        ? "text-xs px-2 py-0.5"
         : "text-xs px-3 py-1";
 
   return (
     <span
       className={clsx(
-        "docket-label stamp-texture inline-flex items-center justify-center rounded-sm border-2",
+        "docket-label inline-flex items-center justify-center whitespace-nowrap rounded-md border",
         sizeClasses,
         styles.border,
         styles.text,
         styles.bg,
         tilt && styles.tilt,
       )}
-      style={{
-        boxShadow: `0 0 0 1px var(--ink), inset 0 0 0 1px currentColor`,
-      }}
     >
       {label}
     </span>
