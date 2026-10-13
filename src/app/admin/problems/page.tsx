@@ -110,11 +110,13 @@ export default function AdminProblemsPage() {
 
     if (!title.trim()) return setError("제목을 입력하세요.");
     if (!description.trim()) return setError("문제 설명을 입력하세요.");
-    const validCases = testCases.filter(
-      (tc) => tc.input_data.trim() && tc.expected_output.trim(),
-    );
+    const validCases = testCases;
     if (validCases.length === 0)
       return setError("테스트케이스를 하나 이상 입력하세요.");
+    if (
+      validCases.some((tc) => tc.input_data === "" && tc.expected_output === "") &&
+      !window.confirm("Include test cases with both empty input and empty output?")
+    ) return;
 
     setSubmitting(true);
     try {
