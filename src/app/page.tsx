@@ -1,15 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, LoaderCircle } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 import { errorMessage } from "@/lib/errors";
+import { SUM_SAMPLES } from "@/lib/samples";
+import Difficulty from "@/components/Difficulty";
+import GradeMark from "@/components/GradeMark";
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sampleId, setSampleId] = useState(SUM_SAMPLES[0].id);
   const router = useRouter();
+  const sample = SUM_SAMPLES.find((item) => item.id === sampleId) ?? SUM_SAMPLES[0];
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -31,48 +37,69 @@ export default function Home() {
       });
       if (error) throw error;
     } catch (error) {
-      setError(errorMessage(error, "로그인 연결에 실패했습니다. 잠시 후 다시 시도하세요."));
+      setError(errorMessage(error, "Google 로그인에 연결하지 못했습니다. 잠시 후 다시 눌러 주세요."));
       setLoading(false);
     }
   };
 
   return (
-    <div className="landing">
+    <div className="page grid flex-1 items-center gap-x-16 gap-y-12 lg:grid-cols-[minmax(0,1fr)_minmax(0,520px)]">
       <section aria-labelledby="intro-title" className="min-w-0">
-        <h1 id="intro-title" className="landing-title">생각을 코드로.<br />풀이는 기록으로.</h1>
-        <p className="mt-6 max-w-lg text-base text-(--text-dim) leading-relaxed">
-          문제를 풀고, 테스트하고, 다시 도전하세요.<br />LOJ가 여러분의 풀이와 채점 결과를 기록합니다.
+        <h1 id="intro-title" className="text-[clamp(46px,7.4vw,92px)] font-black leading-[1.1] tracking-[-0.035em]">
+          제출하면
+          <br />
+          바로 채점.
+        </h1>
+        <p className="mt-7 max-w-[30em] text-[17px] text-pencil">
+          문제를 풀어 코드를 내면 숨겨진 테스트까지 돌려 보고 결과를 알려 줍니다.
+          제출 전에는 예제로 먼저 실행해 볼 수 있고, 대회 중에는 쓰던 코드가 자동으로 저장됩니다.
         </p>
-        <div className="code-record" aria-label="두 수의 합 문제 풀이와 채점 결과 예시">
-          <div className="flex flex-wrap justify-between gap-2 px-6 py-3 border-b border-(--rule) text-sm text-(--text-dim)">
-            <span>연습 문제: 두 수의 합</span><span>Python 3</span>
-          </div>
-          <pre><code>{"a, b = map(int, input().split())\n\nprint(a + b)"}</code></pre>
-          <div className="flex flex-wrap justify-between gap-3 px-6 py-4 border-t border-(--rule) text-sm">
-            <span className="flex items-center gap-2 text-(--accept)"><Check size={17} aria-hidden="true" />정답입니다</span>
-            <span className="text-(--text-faint)">채점 결과 예시</span>
-          </div>
+        <div className="mt-9 flex flex-wrap items-center gap-x-5 gap-y-3">
+          <button onClick={handleGoogleLogin} disabled={loading} className="btn btn-fill min-h-13 px-7 text-base">
+            {loading && <LoaderCircle className="animate-spin" size={18} aria-hidden="true" />}
+            {loading ? "Google로 이동하는 중" : "학교 Google 계정으로 로그인"}
+          </button>
+          <Link href="/problems" className="text-link">
+            문제 먼저 둘러보기
+          </Link>
         </div>
-        <p className="mt-5 text-sm text-(--text-faint)">Python, C, C++, Java, SQL, JavaScript, TypeScript, Ruby, PHP, Perl을 지원합니다.</p>
+        {error && <p role="alert" className="notice-error mt-4 text-sm">{error}</p>}
+        <p className="notice mt-4 text-sm">@bssm.hs.kr 계정만 쓸 수 있습니다.</p>
       </section>
 
-      <section className="w-full max-w-md py-6" aria-labelledby="login-title">
-        <h2 id="login-title" className="text-2xl font-semibold tracking-tight">오늘의 풀이를 시작하세요</h2>
-        <p className="mt-3 text-sm text-(--text-dim) leading-7">학교 Google 계정으로 로그인하면<br />문제를 풀고 대회에 참가할 수 있습니다.</p>
-        <button
-          onClick={handleGoogleLogin}
-          disabled={loading}
-          className="mt-8 w-full min-h-13 flex items-center justify-center gap-3 px-5 py-3 rounded-lg bg-(--seal) text-(--ink) font-semibold hover:bg-(--seal-dim) disabled:opacity-60"
-        >
-          {loading && <LoaderCircle className="animate-spin" size={18} aria-hidden="true" />}
-          {loading ? "Google 로그인 연결 중" : "학교 Google 계정으로 로그인"}
-        </button>
-        {error && <p role="alert" className="mt-4 text-sm text-(--reject)">{error}</p>}
-        <p className="mt-4 text-sm text-(--text-faint)">@bssm.hs.kr 계정만 사용할 수 있습니다.</p>
-        <div className="mt-10 pt-6 border-t border-(--rule) text-sm text-(--text-dim) leading-7">
-          <p className="font-semibold text-(--text)">풀이 기록은 그대로 남습니다</p>
-          <p className="mt-1">제출한 코드의 채점 결과를 확인하고,<br />콘테스트에서는 작성 중인 코드를 자동 저장합니다.</p>
+      <section aria-label="두 수의 합 풀이를 채점한 예시" className="sheet min-w-0 p-6 sm:p-8">
+        <div className="flex items-center gap-4">
+          <span className="relative inline-flex h-14 w-14 flex-none items-center justify-center text-[28px] font-black">
+            1
+            <GradeMark key={sample.id} kind="correct" draw className="absolute -inset-1.5" />
+          </span>
+          <h2 className="text-[22px] font-extrabold leading-snug">두 수의 합</h2>
+          <span className="ml-auto pr-3">
+            <Difficulty value={1} showLabel />
+          </span>
         </div>
+        <p className="mt-4">두 정수 A와 B를 입력받아 A+B를 출력하세요.</p>
+
+        <div role="group" aria-label="예시 풀이 언어" className="mt-6 -mx-2 flex flex-wrap gap-x-0.5 border-t border-line pt-4">
+          {SUM_SAMPLES.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className="choice choice-sm"
+              aria-pressed={item.id === sample.id}
+              onClick={() => setSampleId(item.id)}
+            >
+              {item.name}
+            </button>
+          ))}
+        </div>
+        <div className="relative mt-3">
+          <pre className="code-box h-[232px] overflow-auto whitespace-pre"><code>{sample.code}</code></pre>
+          <p key={sample.id} className="hand landing-verdict pointer-events-none absolute right-5 bottom-3 -rotate-6 text-[68px]">
+            정답
+          </p>
+        </div>
+        <p className="notice mt-4 text-sm">예제 입력 1 2를 넣으면 3이 나옵니다.</p>
       </section>
     </div>
   );
