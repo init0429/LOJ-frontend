@@ -1,21 +1,11 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
-
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+import { code, gothic, pen } from "@/lib/fonts";
 
 export const metadata: Metadata = {
-  title: "LOJ — 사건기록부",
-  description: "제출한 코드는 심사를 거쳐 도장 찍힌 판결로 돌아옵니다.",
+  title: "LOJ",
+  description: "문제를 풀어 제출하면 바로 채점하는 온라인 저지입니다.",
   icons: {
     icon: "favicon.ico",
   },
@@ -30,12 +20,12 @@ export default function RootLayout({
     <html
       lang="ko"
       suppressHydrationWarning
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${gothic.variable} ${pen.variable} ${code.variable} h-full antialiased`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: `(function(){var t;try{t=localStorage.getItem('loj-theme')}catch(e){}if(t!=='light'&&t!=='dark')t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t})()` }} />
       </head>
-      <body className="min-h-full flex flex-col bg-(--ink) text-(--text)">
+      <body className="min-h-full flex flex-col">
         <a className="skip-link" href="#main-content">본문으로 건너뛰기</a>
         <Navbar />
         <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col min-w-0">{children}</main>
