@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
-import { CheckSquare, Square } from "lucide-react";
-import { getDifficultyMeta } from "@/lib/difficulty";
+import Difficulty from "@/components/Difficulty";
+import ProblemNumber from "@/components/ProblemNumber";
 
 interface Problem {
   id: number;
@@ -17,7 +17,7 @@ interface Problem {
 export default function ProblemsPage() {
   const [problems, setProblems] = useState<Problem[]>([]);
   const [loading, setLoading] = useState(true);
-  const router = useRouter();
+  const [loadError, setLoadError] = useState(false);
 
   const [stats, setStats] = useState<
     Record<number, { total: number; accepted: number }>
@@ -37,12 +37,13 @@ export default function ProblemsPage() {
           .from("problems")
           .select("id, title, time_limit_ms, memory_limit_mb, difficulty")
           .order("id", { ascending: true }),
-        // 인용률(정답률)은 전체 유저 기준 통계라 user_id로 안 거름
+        // 정답률은 전체 유저 기준 통계라 user_id로 안 거름
         supabase.from("submissions").select("problem_id, status"),
       ]);
 
       if (problemsRes.error) {
         console.error("문제 목록 로딩 에러:", problemsRes.error);
+        setLoadError(true);
       } else {
         setProblems(problemsRes.data || []);
       }
@@ -62,8 +63,7 @@ export default function ProblemsPage() {
         setStats(newStats);
       }
 
-      // "해결" 체크 표시는 로그인한 본인 제출만 기준으로 삼아야 함
-      // (예전엔 user_id가 없어서 전체 유저 제출을 기준으로 계산했었음 — 버그)
+      // 맞힌 문제 표시는 로그인한 본인 제출만 기준으로 삼는다.
       if (session) {
         const { data: mySubs } = await supabase
           .from("submissions")
@@ -80,116 +80,81 @@ export default function ProblemsPage() {
     fetchData();
   }, []);
 
-  // 난이도(형량 등급) 매핑은 src/lib/difficulty.ts 공용 유틸로 뺐음 (getDifficultyMeta)
-
-  const getAcceptance = (id: number) => {
+  const acceptance = (id: number) => {
     const stat = stats[id];
-    if (!stat || stat.total === 0) return "0.0%";
+    if (!stat || stat.total === 0) return null;
     return ((stat.accepted / stat.total) * 100).toFixed(1) + "%";
   };
 
-  const caseNo = (id: number) => `№ ${String(id).padStart(3, "0")}`;
-
-  const filteredProblems = problems.filter((p) => {
-    const q = searchQuery.trim().toLowerCase();
-    if (!q) return true;
-    return (
-      p.title.toLowerCase().includes(q) ||
-      String(p.id).includes(q) ||
-      caseNo(p.id).toLowerCase().includes(q)
-    );
-  });
+  const query = searchQuery.trim().toLowerCase();
+  const filteredProblems = problems.filter(
+    (p) => !query || p.title.toLowerCase().includes(query) || String(p.id).includes(query),
+  );
 
   return (
-    <div className="flex-1 py-12 px-4 sm:px-6 lg:px-8 bg-(--ink)">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8 flex flex-col gap-6 sm:flex-row sm:items-end justify-between pb-4">
-          <div>
-            <h1 className="page-heading">
-              사건 목록
-            </h1>
-            <p className="mt-2 text-sm text-(--text-dim)">문제를 선택하고 나만의 풀이를 작성하세요.</p>
-          </div>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              aria-label="사건번호 또는 문제 제목 검색"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="사건번호 · 제목 검색"
-              className="w-full sm:w-72 px-4 py-3 bg-(--paper) border border-(--rule) rounded-lg text-sm text-(--text) placeholder-(--text-faint)"
-            />
-          </div>
+    <div className="page">
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
+        <div>
+          <h1 className="page-title">문제</h1>
+          <p className="page-lead">
+            맞힌 문제는 번호에 동그라미가 그려집니다.
+          </p>
         </div>
+        <input
+          type="search"
+          aria-label="문제 번호나 제목으로 찾기"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="번호나 제목으로 찾기"
+          className="input w-full sm:w-72"
+        />
+      </div>
 
+      <div className="sheet mt-8 overflow-hidden">
         {loading ? (
-          <div className="flex justify-center py-20">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-(--seal)"></div>
-          </div>
+          <p role="status" className="notice p-8">문제를 불러오는 중…</p>
+        ) : loadError ? (
+          <p role="alert" className="notice-error p-8">
+            문제 목록을 불러오지 못했습니다. 새로고침해 주세요.
+          </p>
+        ) : filteredProblems.length === 0 ? (
+          <p className="notice p-8">
+            {query
+              ? `"${searchQuery.trim()}"에 맞는 문제가 없습니다. 번호나 제목을 다시 확인해 주세요.`
+              : "아직 등록된 문제가 없습니다."}
+          </p>
         ) : (
-          <div className="data-surface">
-            <table className="w-full text-left text-sm text-(--text)">
-              <thead className="bg-(--paper-raised) docket-label text-[10px] text-(--text-dim) border-b border-(--rule)">
+          <div className="table-wrap">
+            <table className="sheet-table min-w-[560px]">
+              <thead>
                 <tr>
-                  <th className="px-6 py-4 w-16 text-center">해결</th>
-                  <th className="px-6 py-4 w-28">사건번호</th>
-                  <th className="px-6 py-4">제목</th>
-                  <th className="px-6 py-4 w-32">인용률</th>
-                  <th className="px-6 py-4 w-32">경중</th>
+                  <th className="w-20">번호</th>
+                  <th>제목</th>
+                  <th className="w-40">난이도</th>
+                  <th className="num w-28 pr-9!">정답률</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-(--rule)">
-                {filteredProblems.map((problem) => {
-                  const diff = getDifficultyMeta(problem.difficulty);
-                  const isSolved = solvedIds.has(problem.id);
-
-                  return (
-                    <tr
-                      key={problem.id}
-                      onClick={() => router.push(`/problems/${problem.id}`)}
-                      className="hover:bg-(--paper-raised) cursor-pointer transition-colors group border-l-2 border-l-transparent hover:border-l-(--seal)"
-                    >
-                      <td className="px-6 py-4 text-center">
-                        {isSolved ? (
-                          <CheckSquare className="inline-block text-(--accept) w-4 h-4" />
-                        ) : (
-                          <Square className="inline-block text-(--rule-strong) w-4 h-4 group-hover:text-(--text-faint) transition-colors" />
-                        )}
-                      </td>
-                      <td className="px-6 py-4 text-(--text-dim) docket-label text-[11px]">
-                        {caseNo(problem.id)}
-                      </td>
-                      <td className="px-6 py-4 font-medium text-(--text) group-hover:text-(--seal) transition-colors">
+              <tbody>
+                {filteredProblems.map((problem) => (
+                  <tr key={problem.id} className="row-link relative">
+                    <td className="py-2!">
+                      <ProblemNumber id={problem.id} mark={solvedIds.has(problem.id) ? "correct" : null} />
+                    </td>
+                    <td>
+                      <Link href={`/problems/${problem.id}`} className="font-bold after:absolute after:inset-0">
                         {problem.title}
-                      </td>
-                      <td className="px-6 py-4 font-mono text-(--text-dim)">
-                        {getAcceptance(problem.id)}
-                      </td>
-                      <td className="px-6 py-4 docket-label text-[11px]">
-                        <span
-                          className="inline-flex items-center gap-1.5"
-                          style={{ color: diff.color }}
-                        >
-                          <span
-                            className="inline-block w-1.5 h-1.5 rounded-full"
-                            style={{ backgroundColor: diff.color }}
-                          />
-                          {diff.label}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
+                      </Link>
+                    </td>
+                    <td>
+                      <Difficulty value={problem.difficulty} />
+                    </td>
+                    <td className="num pr-9! text-pencil">
+                      {acceptance(problem.id) ?? <span aria-label="제출 없음">–</span>}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
-
-            {filteredProblems.length === 0 && (
-              <div className="text-center py-20 text-(--text-dim)">
-                {searchQuery
-                  ? "검색 결과가 없습니다."
-                  : "접수된 사건이 없습니다."}
-              </div>
-            )}
           </div>
         )}
       </div>
