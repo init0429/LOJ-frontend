@@ -9,9 +9,9 @@ export default function ThemeToggle() {
     <button
       type="button"
       onClick={toggleTheme}
-      aria-label="라이트/다크 테마 전환"
-      title="라이트/다크 테마 전환"
-      className="theme-toggle inline-flex shrink-0 items-center justify-center min-h-10 min-w-10 rounded-lg border border-(--rule) bg-(--paper) text-(--text) hover:bg-(--paper-raised)"
+      aria-label="밝은 화면과 어두운 화면 전환"
+      title="밝은 화면과 어두운 화면 전환"
+      className="inline-flex flex-none items-center justify-center w-10 h-10 rounded-full text-pencil hover:bg-tint hover:text-marker"
     >
       <Moon className="theme-moon" size={18} aria-hidden="true" />
       <Sun className="theme-sun" size={18} aria-hidden="true" />

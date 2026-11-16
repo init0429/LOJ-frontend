@@ -2,17 +2,16 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { Scale, LogOut, User } from "lucide-react";
 import { usePathname } from "next/navigation";
-import clsx from "clsx";
 import type { Session } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
+import Logo from "@/components/Logo";
 import ThemeToggle from "@/components/ThemeToggle";
 
 const NAV_ITEMS = [
-  { href: "/problems", label: "사건 목록" },
-  { href: "/contests", label: "심리 일정" },
-  { href: "/leaderboard", label: "명부" },
+  { href: "/problems", label: "문제" },
+  { href: "/contests", label: "대회" },
+  { href: "/leaderboard", label: "순위" },
 ];
 
 export default function Navbar() {
@@ -56,88 +55,56 @@ export default function Navbar() {
     };
   }, []);
 
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-  };
-
-  // 문제 풀이 화면 / 콘테스트 진행 화면은 전용 헤더(또는 락다운 UI)를 쓰므로 기본 Navbar 숨김
-  if (
-    pathname?.startsWith("/problems/") ||
-    pathname?.startsWith("/contests/")
-  ) {
+  // 문제 풀이 화면과 대회 진행 화면은 자체 머리줄을 쓴다.
+  if (pathname?.startsWith("/problems/") || pathname?.startsWith("/contests/")) {
     return null;
   }
 
+  const items = isAdmin ? [...NAV_ITEMS, { href: "/admin/contests", label: "관리" }] : NAV_ITEMS;
+  const isCurrent = (href: string) =>
+    href.startsWith("/admin") ? pathname.startsWith("/admin") : pathname.startsWith(href);
+
   return (
-    <nav className="min-h-16 bg-(--paper) border-b border-(--rule) flex flex-wrap items-center justify-between gap-y-2 px-4 py-3 md:px-6 sticky top-0 z-50">
-      <div className="flex flex-wrap items-center gap-3 md:gap-10">
-        <Link href="/" className="flex items-center gap-2.5">
-          <Scale className="text-(--seal)" size={22} strokeWidth={2.2} />
-          <span className="docket-label text-[15px] tracking-[0.18em] text-(--text)">
-            LOJ
-          </span>
+    <header className="sticky top-0 z-50 bg-paper border-b-[1.5px] border-print">
+      <div className="mx-auto flex max-w-[1080px] flex-wrap items-center gap-x-6 gap-y-1 px-5 py-2.5">
+        <Link href={session ? "/problems" : "/"} className="py-2 text-[26px]">
+          <Logo />
         </Link>
-        <div className="flex flex-wrap gap-1 text-sm">
-          {NAV_ITEMS.map((item) => {
-            const active = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={clsx(
-                  "docket-label text-[11px] px-4 py-2 border-b-2 transition-colors",
-                  active
-                    ? "border-(--seal) text-(--seal)"
-                    : "border-transparent text-(--text-dim) hover:text-(--text) hover:border-(--rule-strong)",
-                )}
-              >
-                {item.label}
-              </Link>
-            );
-          })}
-          {isAdmin && (
+        <nav aria-label="주요 메뉴" className="flex flex-wrap items-center gap-1">
+          {items.map((item) => (
             <Link
-              href="/admin/contests"
-              className={clsx(
-                "docket-label text-[11px] px-4 py-2 border-b-2 transition-colors",
-                pathname.startsWith("/admin")
-                  ? "border-(--seal) text-(--seal)"
-                  : "border-transparent text-(--text-faint) hover:text-(--text) hover:border-(--rule-strong)",
-              )}
+              key={item.href}
+              href={item.href}
+              className="choice"
+              aria-current={isCurrent(item.href) ? "page" : undefined}
             >
-              관리
+              {item.label}
             </Link>
+          ))}
+        </nav>
+        <div className="ml-auto flex items-center gap-2">
+          <ThemeToggle />
+          {session ? (
+            <>
+              <span className="inline-flex items-stretch overflow-hidden rounded-lg border-[1.5px] border-print text-sm">
+                <span className="bg-tint px-2.5 py-1.5 font-bold text-print-ink">이름</span>
+                <span className="max-w-40 truncate px-3 py-1.5 font-semibold">
+                  {username ?? session.user.email?.split("@")[0]}
+                </span>
+              </span>
+              <button type="button" onClick={() => void supabase.auth.signOut()} className="btn btn-sm btn-line">
+                로그아웃
+              </button>
+            </>
+          ) : (
+            pathname !== "/" && (
+              <Link href="/" className="btn btn-sm btn-fill">
+                로그인
+              </Link>
+            )
           )}
         </div>
       </div>
-
-      <div className="flex items-center gap-3">
-        <ThemeToggle />
-        {session ? (
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2 text-sm text-(--text-dim) bg-(--paper-raised) border border-(--rule) px-3 py-1.5 rounded-sm">
-              <User size={14} className="text-(--seal)" />
-              <span className="docket-label text-[11px]">
-                {username ?? session.user.email?.split("@")[0]}
-              </span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="text-(--text-dim) hover:text-(--reject) transition-colors p-2"
-              title="로그아웃"
-            >
-              <LogOut size={18} />
-            </button>
-          </div>
-        ) : (
-          <Link
-            href="/"
-            className="docket-label text-[11px] border border-(--seal) text-(--seal) hover:bg-(--seal) hover:text-(--ink) px-4 py-2 rounded-sm transition-colors"
-          >
-            로그인
-          </Link>
-        )}
-      </div>
-    </nav>
+    </header>
   );
 }
