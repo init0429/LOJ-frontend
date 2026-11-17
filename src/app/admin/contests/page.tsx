@@ -129,39 +129,32 @@ export default function AdminContestsPage() {
       <AdminTabs />
       <h1 className="page-title">대회 개설</h1>
 
-      <div className="sheet form-sheet mt-8">
-        <div className="form-row">
-          <label htmlFor="contest-title" className="form-label">제목</label>
-          <div className="form-control">
-            <input id="contest-title" value={title} onChange={(e) => setTitle(e.target.value)} className="input" placeholder="2학기 알고리즘 대회" />
-          </div>
+      <div className="mt-6">
+        <div className="field">
+          <label htmlFor="contest-title" className="field-label">제목</label>
+          <input id="contest-title" value={title} onChange={(e) => setTitle(e.target.value)} className="input" />
         </div>
-        <div className="form-row">
-          <label htmlFor="contest-description" className="form-label">
-            설명
-            <small>비워 둘 수 있습니다.</small>
+        <div className="field">
+          <label htmlFor="contest-description" className="field-label">
+            설명<span className="field-hint">선택</span>
           </label>
-          <div className="form-control">
-            <textarea id="contest-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="input" />
-          </div>
+          <textarea id="contest-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="input" />
         </div>
-        <div className="form-row">
-          <label htmlFor="contest-start" className="form-label">시작</label>
-          <div className="form-control">
-            <input id="contest-start" type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="input w-auto max-w-full" />
+        <div className="field grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="contest-start" className="field-label">시작</label>
+            <input id="contest-start" type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="input" />
           </div>
-        </div>
-        <div className="form-row">
-          <label htmlFor="contest-end" className="form-label">끝</label>
-          <div className="form-control">
-            <input id="contest-end" type="datetime-local" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="input w-auto max-w-full" />
+          <div>
+            <label htmlFor="contest-end" className="field-label">종료</label>
+            <input id="contest-end" type="datetime-local" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="input" />
           </div>
         </div>
       </div>
 
-      <h2 className="section-title mt-12">낼 문제</h2>
-      <p className="page-lead">고른 순서대로 A, B, C가 됩니다. 다시 누르면 빠집니다.</p>
-      <div className="sheet-plain mt-5 max-h-80 overflow-y-auto">
+      <h2 className="section-title mt-10">문제</h2>
+      <p className="mt-1 text-sm text-muted">고른 순서대로 A, B, C가 됩니다.</p>
+      <div className="box mt-3 max-h-80 overflow-y-auto">
         {problems.length === 0 ? (
           <p className="notice p-6">
             등록된 문제가 없습니다. <Link href="/admin/problems" className="text-link">문제를 먼저 등록</Link>해 주세요.
@@ -177,12 +170,11 @@ export default function AdminContestsPage() {
                     type="button"
                     aria-pressed={selected}
                     onClick={() => toggleProblem(p.id)}
-                    className={`flex w-full items-center gap-3 px-4 py-2.5 text-left ${selected ? "bg-tint font-bold" : "hover:bg-tint/50"}`}
+                    className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm ${selected ? "bg-subtle" : "hover:bg-subtle"}`}
                   >
-                    <span className={`inline-flex h-7 w-7 flex-none items-center justify-center rounded-full border-[1.5px] text-sm font-black ${selected ? "border-marker bg-marker text-paper" : "border-print"}`}>
-                      {selected ? letter(order) : ""}
-                    </span>
-                    <span className="w-10 flex-none tabular-nums text-pencil">{p.id}</span>
+                    <input type="checkbox" readOnly tabIndex={-1} checked={selected} className="h-4 w-4 accent-(--accent)" aria-hidden="true" />
+                    <span className="w-5 flex-none font-semibold">{selected ? letter(order) : ""}</span>
+                    <span className="w-10 flex-none tabular-nums text-muted">{p.id}</span>
                     <span className="min-w-0 truncate">{p.title}</span>
                   </button>
                 </li>
@@ -192,16 +184,16 @@ export default function AdminContestsPage() {
         )}
       </div>
 
-      <div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-3">
+      <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
         <button onClick={handleCreate} disabled={submitting} className="btn btn-fill">
-          {submitting ? "여는 중" : "대회 개설"}
+          {submitting ? "개설 중…" : "대회 개설"}
         </button>
         {error && <p role="alert" className="notice-error">{error}</p>}
         {created && <p role="status">{created}</p>}
       </div>
 
-      <h2 className="section-title mt-16">개설한 대회</h2>
-      <div className="sheet-plain mt-4 overflow-hidden">
+      <h2 className="section-title mt-12">개설한 대회</h2>
+      <div className="box mt-4 overflow-hidden">
         {existing.length === 0 ? (
           <p className="notice p-6">아직 개설한 대회가 없습니다.</p>
         ) : (
@@ -217,7 +209,7 @@ export default function AdminContestsPage() {
               {existing.map((c) => (
                 <tr key={c.id}>
                   <td className="font-bold">{c.title}</td>
-                  <td className="text-sm text-pencil">{formatRange(c.start_time, c.end_time)}</td>
+                  <td className="text-sm text-muted">{formatRange(c.start_time, c.end_time)}</td>
                   <td>
                     <Link href={`/admin/contests/${c.id}/results`} className="text-link whitespace-nowrap text-sm">
                       결과 보기

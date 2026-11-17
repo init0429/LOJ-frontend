@@ -13,7 +13,7 @@ export default function AdminTabs() {
   return (
     <nav aria-label="관리 메뉴" className="-mx-2 mb-6 flex flex-wrap gap-0.5">
       {TABS.map((tab) => (
-        <Link key={tab.href} href={tab.href} className="choice" aria-current={pathname === tab.href ? "page" : undefined}>
+        <Link key={tab.href} href={tab.href} className="tab" aria-current={pathname === tab.href ? "page" : undefined}>
           {tab.label}
         </Link>
       ))}

@@ -201,14 +201,14 @@ function ProblemWorkspaceContent() {
 
   return (
     <div className="problem-workspace flex h-dvh flex-col overflow-hidden" data-mobile-pane={mobilePane}>
-      <header className="flex flex-none flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b-[1.5px] border-print bg-paper px-3 py-2">
+      <header className="flex flex-none flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line bg-surface px-3 py-2">
         <div className="flex min-w-0 items-center gap-3">
           <Link href="/problems" className="btn btn-sm btn-line pl-2.5">
             <ChevronLeft size={16} aria-hidden="true" />
             문제 목록
           </Link>
-          <p className="truncate font-extrabold">
-            <span className="mr-2 tabular-nums text-print-ink">{problem.id}</span>
+          <p className="truncate font-semibold">
+            <span className="mr-2 tabular-nums text-muted">{problem.id}</span>
             {problem.title}
           </p>
         </div>
@@ -224,16 +224,16 @@ function ProblemWorkspaceContent() {
       </header>
 
       <div role="group" aria-label="보이는 영역" className="workspace-mobile-switch">
-        <button className="choice" aria-pressed={mobilePane === "description"} onClick={() => setMobilePane("description")}>문제</button>
-        <button className="choice" aria-pressed={mobilePane === "code"} onClick={() => setMobilePane("code")}>코드와 결과</button>
+        <button className="tab" aria-pressed={mobilePane === "description"} onClick={() => setMobilePane("description")}>문제</button>
+        <button className="tab" aria-pressed={mobilePane === "code"} onClick={() => setMobilePane("code")}>코드와 결과</button>
       </div>
 
       <div className="flex flex-1 overflow-hidden p-2">
         <PanelGroup orientation="horizontal" className="workspace-panels h-full w-full overflow-hidden">
-          <Panel defaultSize="46%" minSize="25%" className="workspace-description sheet flex flex-col overflow-hidden">
+          <Panel defaultSize="46%" minSize="25%" className="workspace-description box flex flex-col overflow-hidden">
             <div role="group" aria-label="문제지 보기" className="flex flex-none gap-1 border-b border-line px-3 py-1.5">
-              <button className="choice choice-sm" aria-pressed={activeLeftTab === "description"} onClick={() => setActiveLeftTab("description")}>문제</button>
-              <button className="choice choice-sm" aria-pressed={activeLeftTab === "history"} onClick={() => setActiveLeftTab("history")}>내 제출</button>
+              <button className="tab tab-sm" aria-pressed={activeLeftTab === "description"} onClick={() => setActiveLeftTab("description")}>문제</button>
+              <button className="tab tab-sm" aria-pressed={activeLeftTab === "history"} onClick={() => setActiveLeftTab("history")}>내 제출</button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 sm:p-8">
@@ -241,8 +241,7 @@ function ProblemWorkspaceContent() {
                 <ProblemSheet
                   problem={problem}
                   examples={testCases}
-                  mark={solvedBefore || justSolved ? "correct" : null}
-                  drawMark={justSolved && !solvedBefore}
+                  solved={solvedBefore || justSolved}
                 />
               )}
 
@@ -269,7 +268,7 @@ function ProblemWorkspaceContent() {
                           <tr key={sub.id}>
                             <td className="py-2!"><Verdict status={sub.status} size="sm" /></td>
                             <td>{LANGUAGE_LABELS[sub.language] ?? sub.language}</td>
-                            <td className="text-pencil">{formatDateTime(sub.created_at)}</td>
+                            <td className="text-muted">{formatDateTime(sub.created_at)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -284,7 +283,7 @@ function ProblemWorkspaceContent() {
 
           <Panel defaultSize="54%" minSize="30%" className="workspace-code">
             <PanelGroup orientation="vertical">
-              <Panel defaultSize="64%" minSize="25%" className="sheet-plain flex flex-col overflow-hidden">
+              <Panel defaultSize="64%" minSize="25%" className="box flex flex-col overflow-hidden">
                 <div className="flex-none border-b border-line px-3 py-2">
                   <LanguageSelect value={language} onChange={handleLanguageChange} />
                 </div>
@@ -295,10 +294,10 @@ function ProblemWorkspaceContent() {
 
               <PanelResizeHandle className="workspace-divider workspace-divider-row" />
 
-              <Panel defaultSize="36%" minSize="20%" className="sheet-plain flex flex-col overflow-hidden">
+              <Panel defaultSize="36%" minSize="20%" className="box flex flex-col overflow-hidden">
                 <div role="group" aria-label="결과 보기" className="flex flex-none gap-1 border-b border-line px-3 py-1.5">
-                  <button className="choice choice-sm" aria-pressed={activeConsoleTab === "run"} onClick={() => setActiveConsoleTab("run")}>실행 결과</button>
-                  <button className="choice choice-sm" aria-pressed={activeConsoleTab === "submission"} onClick={() => setActiveConsoleTab("submission")}>채점 결과</button>
+                  <button className="tab tab-sm" aria-pressed={activeConsoleTab === "run"} onClick={() => setActiveConsoleTab("run")}>실행 결과</button>
+                  <button className="tab tab-sm" aria-pressed={activeConsoleTab === "submission"} onClick={() => setActiveConsoleTab("submission")}>채점 결과</button>
                 </div>
                 <div className="flex-1 overflow-auto p-5">
                   {activeConsoleTab === "run" && (

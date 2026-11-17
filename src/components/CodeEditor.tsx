@@ -1,70 +1,9 @@
 "use client";
 
-import Editor, { type BeforeMount, type OnMount } from "@monaco-editor/react";
+import Editor, { type OnMount } from "@monaco-editor/react";
 import { useTheme } from "@/hooks/useTheme";
 import { code } from "@/lib/fonts";
 import { MONACO_LANGUAGE } from "@/lib/languages";
-
-// 답안지 색에 맞춘 편집기. 줄 번호와 예약어는 인쇄 분홍, 글자는 사인펜,
-// 문자열과 숫자는 파란 볼펜, 주석은 연필.
-const defineThemes: BeforeMount = (monaco) => {
-  monaco.editor.defineTheme("loj-light", {
-    base: "vs",
-    inherit: true,
-    rules: [
-      { token: "comment", foreground: "6b5f64", fontStyle: "italic" },
-      { token: "keyword", foreground: "c02f55", fontStyle: "bold" },
-      { token: "string", foreground: "2b4a9b" },
-      { token: "number", foreground: "2b4a9b" },
-    ],
-    colors: {
-      "editor.background": "#ffffff",
-      "editor.foreground": "#1f161a",
-      "editorGutter.background": "#ffffff",
-      "editorLineNumber.foreground": "#f08aa2",
-      "editorLineNumber.activeForeground": "#c02f55",
-      "editor.lineHighlightBackground": "#fdf1f4",
-      "editor.lineHighlightBorder": "#00000000",
-      "editor.selectionBackground": "#fbd0da",
-      "editor.inactiveSelectionBackground": "#fde8ed",
-      "editorCursor.foreground": "#1f161a",
-      "editorIndentGuide.background1": "#fbe1e7",
-      "editorIndentGuide.activeBackground1": "#f08aa2",
-      "editorWidget.background": "#ffffff",
-      "editorWidget.border": "#f6c6d1",
-      "scrollbarSlider.background": "#f6c6d180",
-      "scrollbarSlider.hoverBackground": "#f08aa280",
-    },
-  });
-  monaco.editor.defineTheme("loj-dark", {
-    base: "vs-dark",
-    inherit: true,
-    rules: [
-      { token: "comment", foreground: "b9aab0", fontStyle: "italic" },
-      { token: "keyword", foreground: "f393ab", fontStyle: "bold" },
-      { token: "string", foreground: "a9bcf7" },
-      { token: "number", foreground: "a9bcf7" },
-    ],
-    colors: {
-      "editor.background": "#1f171b",
-      "editor.foreground": "#f7eef1",
-      "editorGutter.background": "#1f171b",
-      "editorLineNumber.foreground": "#8f475b",
-      "editorLineNumber.activeForeground": "#f393ab",
-      "editor.lineHighlightBackground": "#2a1d23",
-      "editor.lineHighlightBorder": "#00000000",
-      "editor.selectionBackground": "#5a3040",
-      "editor.inactiveSelectionBackground": "#33212a",
-      "editorCursor.foreground": "#f7eef1",
-      "editorIndentGuide.background1": "#33212a",
-      "editorIndentGuide.activeBackground1": "#8f475b",
-      "editorWidget.background": "#1f171b",
-      "editorWidget.border": "#4b2c37",
-      "scrollbarSlider.background": "#4b2c3780",
-      "scrollbarSlider.hoverBackground": "#8f475b80",
-    },
-  });
-};
 
 // 웹폰트가 늦게 도착하면 글자 폭을 다시 재야 커서 위치가 어긋나지 않는다.
 const remeasure: OnMount = (_editor, monaco) => {
@@ -91,9 +30,8 @@ export default function CodeEditor({
     <Editor
       height={height}
       language={MONACO_LANGUAGE[language] ?? "plaintext"}
-      theme={theme === "dark" ? "loj-dark" : "loj-light"}
+      theme={theme === "dark" ? "vs-dark" : "light"}
       value={value}
-      beforeMount={defineThemes}
       onMount={remeasure}
       onChange={(next) => onChange?.(next ?? "")}
       loading={<p className="notice text-sm">편집기를 불러오는 중…</p>}

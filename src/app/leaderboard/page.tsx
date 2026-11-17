@@ -63,7 +63,7 @@ export default function LeaderboardPage() {
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
         <div>
           <h1 className="page-title">순위</h1>
-          <p className="page-lead">맞힌 문제가 어려울수록 점수가 많이 쌓입니다. 같은 문제는 한 번만 셉니다.</p>
+          <p className="page-lead">어려운 문제를 맞힐수록 점수가 높습니다. 같은 문제는 한 번만 셉니다.</p>
         </div>
         <input
           type="search"
@@ -75,7 +75,7 @@ export default function LeaderboardPage() {
         />
       </div>
 
-      <div className="sheet mt-8 overflow-hidden">
+      <div className="box mt-8 overflow-hidden">
         {loading ? (
           <p role="status" className="notice p-8">순위를 불러오는 중…</p>
         ) : loadError ? (
@@ -95,19 +95,17 @@ export default function LeaderboardPage() {
                   <th>이름</th>
                   <th className="hidden w-28 sm:table-cell">등급</th>
                   <th className="num hidden w-32 sm:table-cell">맞힌 문제</th>
-                  <th className="num w-32 pr-9!">점수</th>
+                  <th className="num w-32">점수</th>
                 </tr>
               </thead>
               <tbody>
                 {filtered.map((user) => (
                   <tr key={user.user_id}>
-                    <td className="font-extrabold tabular-nums">{user.rank}</td>
-                    <td className="font-bold">{user.username}</td>
+                    <td className="tabular-nums">{user.rank}</td>
+                    <td className="font-medium">{user.username}</td>
                     <td className="hidden sm:table-cell">{gradeOf(user.rating)}등급</td>
-                    <td className="num hidden text-pencil sm:table-cell">{user.solved.toLocaleString()}</td>
-                    <td className="num py-1! pr-9!">
-                      <span className="hand text-[30px]">{user.rating.toLocaleString()}</span>
-                    </td>
+                    <td className="num hidden text-muted sm:table-cell">{user.solved.toLocaleString()}</td>
+                    <td className="num font-semibold">{user.rating.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>

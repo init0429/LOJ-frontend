@@ -75,18 +75,17 @@ export default function ContestsPage() {
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
         <div>
           <h1 className="page-title">대회</h1>
-          <p className="page-lead">정해진 시간 동안 같은 문제를 풉니다. 진행 중인 대회는 바로 참가할 수 있습니다.</p>
         </div>
         <div role="group" aria-label="대회 상태로 걸러 보기" className="-mx-2 flex flex-wrap gap-0.5">
           {FILTERS.map((item) => (
-            <button key={item.id} className="choice" aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}>
+            <button key={item.id} className="tab" aria-pressed={filter === item.id} onClick={() => setFilter(item.id)}>
               {item.label}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="sheet mt-8 overflow-hidden">
+      <div className="box mt-8 overflow-hidden">
         {loading ? (
           <p role="status" className="notice p-8">대회를 불러오는 중…</p>
         ) : loadError ? (
@@ -98,24 +97,24 @@ export default function ContestsPage() {
             {filtered.map((contest) => {
               const phase = getPhase(contest, now);
               return (
-                <li key={contest.id} className="relative flex flex-wrap items-center justify-between gap-x-8 gap-y-3 border-t border-line px-6 py-5 first:border-t-0 hover:bg-tint/50 sm:px-8">
+                <li key={contest.id} className="flex flex-wrap items-start justify-between gap-x-8 gap-y-1 border-t border-line px-4 py-3 first:border-t-0">
                   <div className="min-w-0 max-w-[44em]">
-                    <h2 className="text-lg font-extrabold leading-snug">
-                      <Link href={`/contests/${contest.id}`} className="after:absolute after:inset-0">
+                    <h2 className="font-semibold">
+                      <Link href={`/contests/${contest.id}`} className="text-link">
                         {contest.title}
                       </Link>
                     </h2>
-                    {contest.description && <p className="mt-1 line-clamp-2 text-pencil">{contest.description}</p>}
-                    <p className="mt-1 text-sm text-pencil">{formatRange(contest.start_time, contest.end_time)}</p>
+                    {contest.description && <p className="line-clamp-2 text-sm">{contest.description}</p>}
+                    <p className="text-sm text-muted">{formatRange(contest.start_time, contest.end_time)}</p>
                   </div>
                   {phase === "ongoing" ? (
-                    <span className="btn btn-sm btn-fill">참가하기</span>
+                    <span className="text-sm font-semibold text-ok">진행 중</span>
                   ) : phase === "upcoming" ? (
-                    <span className="text-sm font-bold text-print-ink">
+                    <span className="text-sm text-muted">
                       {formatUntil(new Date(contest.start_time).getTime() - now)} 시작
                     </span>
                   ) : (
-                    <span className="text-sm text-pencil">종료</span>
+                    <span className="text-sm text-muted">종료</span>
                   )}
                 </li>
               );

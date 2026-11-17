@@ -9,7 +9,7 @@ export default function LanguageSelect({ value, onChange, disabled = false }: {
 }) {
   return (
     <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-      <label className="flex items-center gap-2 text-sm font-bold text-print-ink">
+      <label className="flex items-center gap-2 text-sm font-bold text-muted">
         언어
         <select
           value={value}

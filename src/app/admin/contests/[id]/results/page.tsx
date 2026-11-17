@@ -173,12 +173,11 @@ export default function ContestResultsPage() {
 
       <h1 className="page-title mt-6">{contest?.title ?? "대회"} 결과</h1>
       <p className="page-lead">
-        제출한 사람 {participants.length}명, 문제 {problems.length}개. 맞힌 문제가 같으면 마지막 문제를 먼저 맞힌 사람이 앞입니다.
-        이름을 누르면 문제별 결과와 코드를 볼 수 있습니다.
+        참가자 {participants.length}명, 문제 {problems.length}개. 맞힌 수가 같으면 마지막 정답이 빠른 순입니다.
       </p>
 
       {!selectedParticipant ? (
-        <div className="sheet mt-8 overflow-hidden">
+        <div className="box mt-8 overflow-hidden">
           {participants.length === 0 ? (
             <p className="notice p-8">아직 제출한 사람이 없습니다.</p>
           ) : (
@@ -188,24 +187,24 @@ export default function ContestResultsPage() {
                   <th className="w-20">순위</th>
                   <th>이름</th>
                   <th className="num hidden w-36 sm:table-cell">마지막 정답</th>
-                  <th className="num w-36 pr-9!">맞힌 문제</th>
+                  <th className="num w-36">맞힌 문제</th>
                 </tr>
               </thead>
               <tbody>
                 {ranking.map((row) => (
                   <tr key={row.user_id} className="row-link relative">
-                    <td className="font-extrabold tabular-nums">{row.rank}</td>
+                    <td className="font-semibold tabular-nums">{row.rank}</td>
                     <td>
-                      <button className="font-bold after:absolute after:inset-0" onClick={() => setSelectedUser(row.user_id)}>
+                      <button className="text-link after:absolute after:inset-0" onClick={() => setSelectedUser(row.user_id)}>
                         {participants.find((p) => p.user_id === row.user_id)?.username ?? row.user_id.slice(0, 8)}
                       </button>
                     </td>
-                    <td className="num hidden text-pencil sm:table-cell">
+                    <td className="num hidden text-muted sm:table-cell">
                       {row.finishedAt === null ? "–" : `시작 후 ${formatElapsed(row.finishedAt - contestStart)}`}
                     </td>
-                    <td className="num py-1! pr-9!">
-                      <span className="hand text-[28px]">{row.solved}</span>
-                      <span className="text-pencil"> / {problems.length}</span>
+                    <td className="num">
+                      <span className="font-semibold">{row.solved}</span>
+                      <span className="text-muted"> / {problems.length}</span>
                     </td>
                   </tr>
                 ))}
@@ -220,11 +219,11 @@ export default function ContestResultsPage() {
             전체 순위
           </button>
           <h2 id="participant-name" className="section-title mt-5">{selectedParticipant.username}</h2>
-          <p className="text-pencil">
+          <p className="text-muted">
             {problems.length}문제 중 {solvedCount(selectedParticipant.user_id)}문제를 맞혔습니다. 제출한 문제를 누르면 코드가 열립니다.
           </p>
 
-          <div className="sheet mt-5 overflow-hidden">
+          <div className="box mt-5 overflow-hidden">
             <table className="sheet-table">
               <thead>
                 <tr>
@@ -238,18 +237,18 @@ export default function ContestResultsPage() {
                   const status = bestStatus(selectedParticipant.user_id, p.id);
                   return (
                     <tr key={p.id} className={status ? "row-link relative" : undefined}>
-                      <td className="font-extrabold">{letter(i)}</td>
+                      <td className="font-semibold">{letter(i)}</td>
                       <td>
                         {status ? (
-                          <button className="font-bold after:absolute after:inset-0" onClick={() => openViewer(selectedParticipant.user_id, p.id)}>
+                          <button className="text-link after:absolute after:inset-0" onClick={() => openViewer(selectedParticipant.user_id, p.id)}>
                             {p.title}
                           </button>
                         ) : (
-                          <span className="text-pencil">{p.title}</span>
+                          <span className="text-muted">{p.title}</span>
                         )}
                       </td>
                       <td className="py-2!">
-                        {status ? <Verdict status={status} size="sm" /> : <span className="text-sm text-pencil">제출 없음</span>}
+                        {status ? <Verdict status={status} size="sm" /> : <span className="text-sm text-muted">제출 없음</span>}
                       </td>
                     </tr>
                   );
@@ -261,20 +260,20 @@ export default function ContestResultsPage() {
       )}
 
       {viewing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-marker/60 p-4" onClick={() => setViewing(null)}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-fg/60 p-4" onClick={() => setViewing(null)}>
           <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="viewer-title"
-            className="sheet-plain flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden"
+            className="box flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
               <div className="min-w-0">
                 <h2 id="viewer-title" className="section-title truncate">{viewingProblemTitle}</h2>
-                <p className="text-sm text-pencil">{viewingUsername}의 제출</p>
+                <p className="text-sm text-muted">{viewingUsername}의 제출</p>
               </div>
-              <button onClick={() => setViewing(null)} aria-label="닫기" title="닫기" className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-full text-pencil hover:bg-tint hover:text-marker">
+              <button onClick={() => setViewing(null)} aria-label="닫기" title="닫기" className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-fg">
                 <X size={20} aria-hidden="true" />
               </button>
             </div>
@@ -282,7 +281,7 @@ export default function ContestResultsPage() {
             {currentAttempts.length > 1 && (
               <div role="group" aria-label="제출 고르기" className="flex flex-wrap gap-0.5 border-b border-line px-3 py-1.5">
                 {currentAttempts.map((a, i) => (
-                  <button key={a.id} className="choice choice-sm" aria-pressed={i === attemptIdx} onClick={() => setAttemptIdx(i)}>
+                  <button key={a.id} className="tab tab-sm" aria-pressed={i === attemptIdx} onClick={() => setAttemptIdx(i)}>
                     {currentAttempts.length - i}번째
                   </button>
                 ))}
@@ -294,7 +293,7 @@ export default function ContestResultsPage() {
                 <div className="flex flex-wrap items-center gap-x-6 gap-y-1 px-5 py-3">
                   <Verdict status={currentAttempt.status} size="sm" />
                   <span className="text-sm">{LANGUAGE_LABELS[currentAttempt.language] ?? currentAttempt.language}</span>
-                  <span className="text-sm text-pencil">{formatDateTime(currentAttempt.created_at)}</span>
+                  <span className="text-sm text-muted">{formatDateTime(currentAttempt.created_at)}</span>
                 </div>
                 <div className="border-t border-line">
                   <CodeEditor

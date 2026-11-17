@@ -8,8 +8,8 @@ export default function AdminGate({ checking, isAdmin }: { checking: boolean; is
   if (!isAdmin) {
     return (
       <div className="page page-narrow">
-        <h1 className="page-title">관리자만 볼 수 있는 화면입니다</h1>
-        <p className="page-lead">문제 등록과 대회 개설은 관리자 계정으로 로그인해야 할 수 있습니다.</p>
+        <h1 className="page-title">관리자 전용 화면입니다</h1>
+        <p className="page-lead">관리자 계정으로 로그인해 주세요.</p>
         <Link href="/problems" className="btn btn-line mt-8">문제 목록으로 가기</Link>
       </div>
     );

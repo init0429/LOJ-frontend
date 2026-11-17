@@ -106,9 +106,6 @@ export default function ProblemsPage() {
       <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
         <div>
           <h1 className="page-title">문제</h1>
-          <p className="page-lead">
-            맞힌 문제는 번호에 동그라미가 그려집니다.
-          </p>
         </div>
         <input
           type="search"
@@ -120,7 +117,7 @@ export default function ProblemsPage() {
         />
       </div>
 
-      <div className="sheet mt-8 overflow-hidden">
+      <div className="box mt-8 overflow-hidden">
         {loading ? (
           <p role="status" className="notice p-8">문제를 불러오는 중…</p>
         ) : loadError ? (
@@ -141,24 +138,24 @@ export default function ProblemsPage() {
                   <th className="w-14 sm:w-20">번호</th>
                   <th>제목</th>
                   <th className="w-28 sm:w-40">난이도</th>
-                  <th className="num hidden w-28 pr-9! sm:table-cell">정답률</th>
+                  <th className="num hidden w-28 sm:table-cell">정답률</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredProblems.map((problem) => (
                   <tr key={problem.id} className="row-link relative">
                     <td className="py-2!">
-                      <ProblemNumber id={problem.id} mark={solvedIds.has(problem.id) ? "correct" : null} />
+                      <ProblemNumber id={problem.id} solved={solvedIds.has(problem.id)} />
                     </td>
                     <td>
-                      <Link href={`/problems/${problem.id}`} className="font-bold after:absolute after:inset-0">
+                      <Link href={`/problems/${problem.id}`} className="text-link after:absolute after:inset-0">
                         {problem.title}
                       </Link>
                     </td>
                     <td>
                       <Difficulty value={problem.difficulty} />
                     </td>
-                    <td className="num hidden pr-9! text-pencil sm:table-cell">
+                    <td className="num hidden text-muted sm:table-cell">
                       {acceptance(problem.id) ?? <span aria-label="제출 없음">–</span>}
                     </td>
                   </tr>

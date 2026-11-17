@@ -65,17 +65,17 @@ export default function Navbar() {
     href.startsWith("/admin") ? pathname.startsWith("/admin") : pathname.startsWith(href);
 
   return (
-    <header className="sticky top-0 z-50 bg-paper border-b-[1.5px] border-print">
-      <div className="mx-auto flex max-w-[1080px] flex-wrap items-center gap-x-6 gap-y-1 px-5 py-2.5">
-        <Link href={session ? "/problems" : "/"} className="py-2 text-[26px]">
+    <header className="sticky top-0 z-50 border-b border-line bg-surface">
+      <div className="mx-auto flex max-w-[1080px] flex-wrap items-center gap-x-6 px-5">
+        <Link href={session ? "/problems" : "/"} className="py-2.5 text-lg">
           <Logo />
         </Link>
-        <nav aria-label="주요 메뉴" className="order-last -mx-2 flex w-full flex-wrap items-center gap-1 sm:order-none sm:mx-0 sm:w-auto">
+        <nav aria-label="주요 메뉴" className="order-last -mx-2.5 flex w-full flex-wrap items-center sm:order-none sm:mx-0 sm:w-auto">
           {items.map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className="choice"
+              className="tab"
               aria-current={isCurrent(item.href) ? "page" : undefined}
             >
               {item.label}
@@ -86,11 +86,8 @@ export default function Navbar() {
           <ThemeToggle />
           {session ? (
             <>
-              <span className="inline-flex items-stretch overflow-hidden rounded-lg border-[1.5px] border-print text-sm">
-                <span className="bg-tint px-2.5 py-1.5 font-bold text-print-ink">이름</span>
-                <span className="max-w-40 truncate px-3 py-1.5 font-semibold">
-                  {username ?? session.user.email?.split("@")[0]}
-                </span>
+              <span className="max-w-40 truncate text-sm">
+                {username ?? session.user.email?.split("@")[0]}
               </span>
               <button type="button" onClick={() => void supabase.auth.signOut()} className="btn btn-sm btn-line">
                 로그아웃

@@ -154,91 +154,76 @@ export default function AdminProblemsPage() {
       <AdminTabs />
       <h1 className="page-title">문제 등록</h1>
 
-      <div className="sheet form-sheet mt-8">
-        <div className="form-row">
-          <label htmlFor="problem-title" className="form-label">제목</label>
-          <div className="form-control">
-            <input id="problem-title" value={title} onChange={(e) => setTitle(e.target.value)} className="input" placeholder="두 수의 합" />
-          </div>
+      <div className="mt-6">
+        <div className="field">
+          <label htmlFor="problem-title" className="field-label">제목</label>
+          <input id="problem-title" value={title} onChange={(e) => setTitle(e.target.value)} className="input" />
         </div>
-        <div className="form-row">
-          <label htmlFor="problem-description" className="form-label">
-            문제 설명
-            <small>마크다운과 $수식$을 쓸 수 있습니다.</small>
+        <div className="field">
+          <label htmlFor="problem-description" className="field-label">
+            문제 설명<span className="field-hint">마크다운, $수식$</span>
           </label>
-          <div className="form-control">
-            <textarea id="problem-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={6} className="input input-code" />
-          </div>
+          <textarea id="problem-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={8} className="input input-code" />
         </div>
-        <div className="form-row">
-          <label htmlFor="problem-input" className="form-label">
-            입력 설명
-            <small>비워 둘 수 있습니다.</small>
-          </label>
-          <div className="form-control">
+        <div className="field grid gap-4 sm:grid-cols-2">
+          <div>
+            <label htmlFor="problem-input" className="field-label">
+              입력 설명<span className="field-hint">선택</span>
+            </label>
             <textarea id="problem-input" value={inputDescription} onChange={(e) => setInputDescription(e.target.value)} rows={3} className="input input-code" />
           </div>
-        </div>
-        <div className="form-row">
-          <label htmlFor="problem-output" className="form-label">
-            출력 설명
-            <small>비워 둘 수 있습니다.</small>
-          </label>
-          <div className="form-control">
+          <div>
+            <label htmlFor="problem-output" className="field-label">
+              출력 설명<span className="field-hint">선택</span>
+            </label>
             <textarea id="problem-output" value={outputDescription} onChange={(e) => setOutputDescription(e.target.value)} rows={3} className="input input-code" />
           </div>
         </div>
-        <div className="form-row">
-          <label htmlFor="problem-time" className="form-label">시간 제한</label>
-          <div className="form-control flex items-center gap-2">
-            <input id="problem-time" type="number" min={100} step={100} value={timeLimitMs} onChange={(e) => setTimeLimitMs(Number(e.target.value))} className="input w-32" />
-            <span className="text-pencil">ms</span>
+        <div className="field grid gap-4 sm:grid-cols-3">
+          <div>
+            <label htmlFor="problem-time" className="field-label">시간 제한 (ms)</label>
+            <input id="problem-time" type="number" min={100} step={100} value={timeLimitMs} onChange={(e) => setTimeLimitMs(Number(e.target.value))} className="input" />
           </div>
-        </div>
-        <div className="form-row">
-          <label htmlFor="problem-memory" className="form-label">메모리 제한</label>
-          <div className="form-control flex items-center gap-2">
-            <input id="problem-memory" type="number" min={16} step={16} value={memoryLimitMb} onChange={(e) => setMemoryLimitMb(Number(e.target.value))} className="input w-32" />
-            <span className="text-pencil">MB</span>
+          <div>
+            <label htmlFor="problem-memory" className="field-label">메모리 제한 (MB)</label>
+            <input id="problem-memory" type="number" min={16} step={16} value={memoryLimitMb} onChange={(e) => setMemoryLimitMb(Number(e.target.value))} className="input" />
           </div>
-        </div>
-        <div className="form-row">
-          <span id="problem-difficulty" className="form-label">난이도</span>
-          <div role="group" aria-labelledby="problem-difficulty" className="form-control flex flex-wrap gap-0.5 px-2!">
-            {DIFFICULTY_LEVELS.map((level) => (
-              <button key={level} type="button" className="choice choice-sm" aria-pressed={difficulty === level} onClick={() => setDifficulty(level)}>
-                {difficultyLabel(level)}
-              </button>
-            ))}
+          <div>
+            <label htmlFor="problem-difficulty" className="field-label">난이도</label>
+            <select id="problem-difficulty" value={difficulty} onChange={(e) => setDifficulty(Number(e.target.value))} className="input">
+              {DIFFICULTY_LEVELS.map((level) => (
+                <option key={level} value={level}>{difficultyLabel(level)}</option>
+              ))}
+            </select>
           </div>
         </div>
       </div>
 
-      <h2 className="section-title mt-12">테스트케이스</h2>
-      <p className="page-lead">숨김으로 표시한 테스트케이스는 제출을 채점할 때만 쓰이고 문제에는 보이지 않습니다.</p>
-      <ol className="mt-5 space-y-3">
+      <h2 className="section-title mt-10">테스트케이스</h2>
+      <p className="mt-1 text-sm text-muted">숨김으로 표시한 것은 채점에만 쓰이고 문제에는 보이지 않습니다.</p>
+      <ol className="mt-3 space-y-3">
         {testCases.map((tc, idx) => (
-          <li key={idx} className="sheet-plain p-4">
+          <li key={idx} className="box p-4">
             <div className="flex items-center justify-between gap-3">
-              <span className="font-extrabold tabular-nums">{idx + 1}번</span>
+              <span className="font-semibold tabular-nums">{idx + 1}번</span>
               <div className="flex items-center gap-4">
                 <label className="flex items-center gap-2 text-sm">
-                  <input type="checkbox" checked={tc.is_hidden} onChange={(e) => updateTestCase(idx, { is_hidden: e.target.checked })} className="h-4 w-4 accent-(--marker)" />
+                  <input type="checkbox" checked={tc.is_hidden} onChange={(e) => updateTestCase(idx, { is_hidden: e.target.checked })} className="h-4 w-4 accent-(--accent)" />
                   숨김
                 </label>
                 {testCases.length > 1 && (
-                  <button type="button" onClick={() => removeTestCase(idx)} aria-label={`${idx + 1}번 테스트케이스 삭제`} title="삭제" className="inline-flex h-9 w-9 items-center justify-center rounded-full text-pencil hover:bg-tint hover:text-marker">
+                  <button type="button" onClick={() => removeTestCase(idx)} aria-label={`${idx + 1}번 테스트케이스 삭제`} title="삭제" className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-fg">
                     <Trash2 size={16} aria-hidden="true" />
                   </button>
                 )}
               </div>
             </div>
             <div className="mt-2 grid gap-3 sm:grid-cols-2">
-              <label className="block text-sm font-bold text-print-ink">
+              <label className="block text-sm text-muted">
                 입력
                 <textarea value={tc.input_data} onChange={(e) => updateTestCase(idx, { input_data: e.target.value })} rows={3} className="input input-code mt-1 font-normal" />
               </label>
-              <label className="block text-sm font-bold text-print-ink">
+              <label className="block text-sm text-muted">
                 출력
                 <textarea value={tc.expected_output} onChange={(e) => updateTestCase(idx, { expected_output: e.target.value })} rows={3} className="input input-code mt-1 font-normal" />
               </label>
@@ -248,16 +233,16 @@ export default function AdminProblemsPage() {
       </ol>
       <button type="button" onClick={addTestCase} className="btn btn-sm btn-line mt-3">테스트케이스 추가</button>
 
-      <div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-3">
+      <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
         <button onClick={handleCreate} disabled={submitting} className="btn btn-fill">
-          {submitting ? "등록하는 중" : "문제 등록"}
+          {submitting ? "등록 중…" : "문제 등록"}
         </button>
         {error && <p role="alert" className="notice-error">{error}</p>}
         {created && <p role="status">{created}</p>}
       </div>
 
-      <h2 className="section-title mt-16">등록된 문제</h2>
-      <div className="sheet-plain mt-4 overflow-hidden">
+      <h2 className="section-title mt-12">등록된 문제</h2>
+      <div className="box mt-4 overflow-hidden">
         {existing.length === 0 ? (
           <p className="notice p-6">아직 등록된 문제가 없습니다.</p>
         ) : (
@@ -272,7 +257,7 @@ export default function AdminProblemsPage() {
             <tbody>
               {existing.map((p) => (
                 <tr key={p.id}>
-                  <td className="font-extrabold tabular-nums">{p.id}</td>
+                  <td className="font-semibold tabular-nums">{p.id}</td>
                   <td>{p.title}</td>
                   <td><Difficulty value={p.difficulty} /></td>
                 </tr>

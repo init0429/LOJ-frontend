@@ -6,9 +6,9 @@ import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useSubmissionState } from "@/hooks/useSubmissionState";
 import CodeEditor from "@/components/CodeEditor";
-import GradeMark from "@/components/GradeMark";
 import LanguageSelect from "@/components/LanguageSelect";
 import Logo from "@/components/Logo";
+import ProblemNumber from "@/components/ProblemNumber";
 import ProblemSheet from "@/components/ProblemSheet";
 import SubmissionResult from "@/components/SubmissionResult";
 import TestRunResult from "@/components/TestRunResult";
@@ -304,24 +304,26 @@ export default function ContestWorkspace() {
 
   if (phase === "upcoming") {
     return (
-      <div className="page page-narrow my-auto">
+      <div className="page page-narrow">
         <h1 className="page-title">{contest.title}</h1>
-        <p className="page-lead">{formatDateTime(contest.start_time)}에 시작합니다. 시작하면 이 화면에 문제가 열립니다.</p>
-        <p className="mt-10 text-sm font-bold text-print-ink">시작까지</p>
-        <p role="timer" className="text-[clamp(56px,12vw,112px)] font-black leading-none tracking-[-0.03em] tabular-nums">
-          {formatCountdown(new Date(contest.start_time).getTime() - now)}
+        <p className="page-lead">{formatDateTime(contest.start_time)} 시작</p>
+        <p className="mt-6">
+          시작까지{" "}
+          <span role="timer" className="text-lg font-semibold tabular-nums">
+            {formatCountdown(new Date(contest.start_time).getTime() - now)}
+          </span>
         </p>
-        <Link href="/contests" className="btn btn-line mt-10">대회 목록으로 돌아가기</Link>
+        <Link href="/contests" className="btn btn-line mt-6">대회 목록</Link>
       </div>
     );
   }
 
   if (phase === "ended") {
     return (
-      <div className="page page-narrow my-auto">
+      <div className="page page-narrow">
         <h1 className="page-title">{contest.title}</h1>
-        <p className="page-lead">{formatDateTime(contest.end_time)}에 끝난 대회입니다. 지금은 제출할 수 없습니다.</p>
-        <Link href="/contests" className="btn btn-line mt-8">대회 목록으로 돌아가기</Link>
+        <p className="page-lead">{formatDateTime(contest.end_time)}에 끝난 대회입니다.</p>
+        <Link href="/contests" className="btn btn-line mt-6">대회 목록</Link>
       </div>
     );
   }
@@ -330,13 +332,13 @@ export default function ContestWorkspace() {
 
   return (
     <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
-      <header className="flex flex-none flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b-[1.5px] border-print bg-paper px-4 py-2">
+      <header className="flex flex-none flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line bg-surface px-4 py-2">
         <div className="flex min-w-0 items-center gap-4">
-          <Logo className="text-[22px]" />
-          <p className="truncate font-extrabold">{contest.title}</p>
+          <Logo className="text-lg" />
+          <p className="truncate font-semibold">{contest.title}</p>
         </div>
         <div className="flex items-center gap-4">
-          <span role="status" className="text-sm text-pencil">
+          <span role="status" className="text-sm text-muted">
             {saveState === "error" ? (
               <button className="text-link" onClick={() => { setSaveState("saving"); setSaveAttempt((value) => value + 1); }}>
                 저장하지 못했습니다. 다시 저장
@@ -344,8 +346,8 @@ export default function ContestWorkspace() {
             ) : saveState === "saving" ? "저장하는 중" : saveState === "saved" ? "저장됨" : ""}
           </span>
           <p className="flex items-baseline gap-2">
-            <span className="text-sm font-bold text-print-ink">남은 시간</span>
-            <span role="timer" className="text-xl font-black tabular-nums">
+            <span className="text-sm text-muted">남은 시간</span>
+            <span role="timer" className="font-semibold tabular-nums">
               {formatCountdown(new Date(contest.end_time).getTime() - now)}
             </span>
           </p>
@@ -354,7 +356,7 @@ export default function ContestWorkspace() {
       </header>
 
       {problems.length > 1 && (
-        <nav aria-label="대회 문제" className="flex flex-none gap-1 overflow-x-auto border-b border-line bg-paper px-3 py-1.5">
+        <nav aria-label="대회 문제" className="flex flex-none gap-1 overflow-x-auto border-b border-line bg-surface px-3">
           {problems.map((p, i) => (
             <button
               key={p.id}
@@ -362,14 +364,10 @@ export default function ContestWorkspace() {
               aria-pressed={i === activeIdx}
               title={dirty ? "코드가 저장된 뒤에 다른 문제로 넘어갈 수 있습니다." : undefined}
               onClick={() => setActiveIdx(i)}
-              className="contest-tab"
+              className="tab max-w-[16em] gap-1.5"
             >
-              <span className="relative inline-flex h-7 w-7 flex-none items-center justify-center font-black">
-                {letter(i)}
-                {solvedIds.has(p.id) && <GradeMark kind="correct" className="absolute -inset-0.5" />}
-              </span>
+              <span className="font-semibold"><ProblemNumber id={letter(i)} solved={solvedIds.has(p.id)} /></span>
               <span className="truncate">{p.title}</span>
-              {solvedIds.has(p.id) && <span className="sr-only">(맞힌 문제)</span>}
             </button>
           ))}
         </nav>
@@ -379,20 +377,19 @@ export default function ContestWorkspace() {
         <p className="notice page">이 대회에는 아직 문제가 없습니다.</p>
       ) : (
         <div className="grid flex-1 gap-2 p-2 lg:min-h-0 lg:grid-cols-2">
-          <div className="sheet overflow-y-auto p-6 sm:p-8">
+          <div className="box overflow-y-auto p-6 sm:p-8">
             {currentProblem && (
               <ProblemSheet
                 problem={currentProblem}
                 examples={testCases}
                 number={letter(activeIdx)}
-                mark={solvedIds.has(currentProblem.id) || justSolved ? "correct" : null}
-                drawMark={justSolved}
+                solved={solvedIds.has(currentProblem.id) || justSolved}
               />
             )}
           </div>
 
           <div className="flex min-h-[80dvh] flex-col gap-2 lg:min-h-0">
-            <div className="sheet-plain flex min-h-0 flex-[3] flex-col overflow-hidden">
+            <div className="box flex min-h-0 flex-[3] flex-col overflow-hidden">
               <div className="flex flex-none flex-wrap items-center justify-between gap-2 border-b border-line px-3 py-2">
                 <LanguageSelect
                   value={language}
@@ -418,10 +415,10 @@ export default function ContestWorkspace() {
               </div>
             </div>
 
-            <div className="sheet-plain flex min-h-0 flex-[2] flex-col overflow-hidden">
+            <div className="box flex min-h-0 flex-[2] flex-col overflow-hidden">
               <div role="group" aria-label="결과 보기" className="flex flex-none gap-1 border-b border-line px-3 py-1.5">
-                <button className="choice choice-sm" aria-pressed={activeConsoleTab === "run"} onClick={() => setActiveConsoleTab("run")}>실행 결과</button>
-                <button className="choice choice-sm" aria-pressed={activeConsoleTab === "submission"} onClick={() => setActiveConsoleTab("submission")}>채점 결과</button>
+                <button className="tab tab-sm" aria-pressed={activeConsoleTab === "run"} onClick={() => setActiveConsoleTab("run")}>실행 결과</button>
+                <button className="tab tab-sm" aria-pressed={activeConsoleTab === "submission"} onClick={() => setActiveConsoleTab("submission")}>채점 결과</button>
               </div>
               <div className="flex-1 overflow-auto p-5">
                 {activeConsoleTab === "run" && (
