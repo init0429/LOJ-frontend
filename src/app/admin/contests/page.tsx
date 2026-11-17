@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { Check } from "lucide-react";
-import clsx from "clsx";
-import StampTag from "@/components/StampTag";
+import { supabase } from "@/lib/supabase";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import AdminGate from "@/components/AdminGate";
 import AdminTabs from "@/components/AdminTabs";
 import { errorMessage } from "@/lib/errors";
+import { formatRange } from "@/lib/format";
 
 interface Problem {
   id: number;
@@ -23,10 +22,10 @@ interface ContestRow {
   end_time: string;
 }
 
+const letter = (index: number) => String.fromCharCode(65 + (index % 26));
+
 export default function AdminContestsPage() {
-  const router = useRouter();
-  const [checking, setChecking] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { checking, isAdmin } = useIsAdmin();
 
   const [problems, setProblems] = useState<Problem[]>([]);
   const [existing, setExisting] = useState<ContestRow[]>([]);
@@ -39,27 +38,7 @@ export default function AdminContestsPage() {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // 관리자 권한 확인 — profiles.is_admin이 아니면 접근 차단
-  useEffect(() => {
-    (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        router.replace("/");
-        return;
-      }
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("is_admin")
-        .eq("id", session.user.id)
-        .single();
-
-      setIsAdmin(!!profile?.is_admin);
-      setChecking(false);
-    })();
-  }, [router]);
+  const [created, setCreated] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -84,13 +63,14 @@ export default function AdminContestsPage() {
 
   const handleCreate = async () => {
     setError(null);
+    setCreated(null);
 
-    if (!title.trim()) return setError("제목을 입력하세요.");
-    if (!startTime || !endTime) return setError("시작/종료 시각을 입력하세요.");
+    if (!title.trim()) return setError("제목을 적어 주세요.");
+    if (!startTime || !endTime) return setError("시작과 끝 시각을 모두 정해 주세요.");
     if (new Date(startTime) >= new Date(endTime))
-      return setError("종료 시각이 시작 시각보다 늦어야 합니다.");
+      return setError("끝나는 시각이 시작 시각보다 뒤여야 합니다.");
     if (selectedIds.length === 0)
-      return setError("문제를 하나 이상 선택하세요.");
+      return setError("문제를 하나 이상 골라 주세요.");
 
     setSubmitting(true);
     try {
@@ -119,193 +99,125 @@ export default function AdminContestsPage() {
       if (linkErr) throw linkErr;
 
       setExisting((prev) => [contest, ...prev]);
+      setCreated(`“${contest.title}” 대회를 열었습니다.`);
       setTitle("");
       setDescription("");
       setStartTime("");
       setEndTime("");
       setSelectedIds([]);
     } catch (err) {
-      setError(errorMessage(err, "생성 중 오류가 발생했습니다."));
+      setError(errorMessage(err, "대회를 열지 못했습니다. 다시 눌러 주세요."));
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (checking) {
-    return (
-      <div className="h-screen bg-(--ink) flex items-center justify-center text-(--seal)">
-        Loading...
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="h-screen bg-(--ink) flex flex-col items-center justify-center gap-4 text-center px-6">
-        <StampTag label="기각" tone="reject" size="lg" />
-        <p className="text-(--text-dim)">
-          관리자만 접근할 수 있는 화면입니다.
-        </p>
-      </div>
-    );
-  }
+  if (checking || !isAdmin) return <AdminGate checking={checking} isAdmin={isAdmin} />;
 
   return (
-    <div className="flex-1 py-12 px-4 sm:px-6 lg:px-8 bg-(--ink) min-h-[calc(100vh-64px)]">
-      <div className="max-w-3xl mx-auto">
-        <AdminTabs />
-        <h1 className="text-2xl font-semibold text-(--text) mb-6">
-          콘테스트 개설
-        </h1>
+    <div className="page page-narrow">
+      <AdminTabs />
+      <h1 className="page-title">대회 개설</h1>
 
-        <div className="bg-(--paper) border border-(--rule) p-6 space-y-5 mb-10">
-          <div>
-            <label className="docket-label block text-[11px] text-(--text-dim) mb-1.5">
-              제목
-            </label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2.5 bg-(--ink) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-(--text)"
-              placeholder="예: 2026 여름방학 알고리즘 심리"
-            />
+      <div className="sheet form-sheet mt-8">
+        <div className="form-row">
+          <label htmlFor="contest-title" className="form-label">제목</label>
+          <div className="form-control">
+            <input id="contest-title" value={title} onChange={(e) => setTitle(e.target.value)} className="input" placeholder="2학기 알고리즘 대회" />
           </div>
-
-          <div>
-            <label className="docket-label block text-[11px] text-(--text-dim) mb-1.5">
-              설명 (선택)
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              className="w-full px-4 py-2.5 bg-(--ink) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-(--text) resize-none"
-            />
+        </div>
+        <div className="form-row">
+          <label htmlFor="contest-description" className="form-label">
+            설명
+            <small>비워 둘 수 있습니다.</small>
+          </label>
+          <div className="form-control">
+            <textarea id="contest-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={2} className="input" />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="docket-label block text-[11px] text-(--text-dim) mb-1.5">
-                시작 시각
-              </label>
-              <input
-                type="datetime-local"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full px-4 py-2.5 bg-(--ink) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-(--text)"
-              />
-            </div>
-            <div>
-              <label className="docket-label block text-[11px] text-(--text-dim) mb-1.5">
-                종료 시각
-              </label>
-              <input
-                type="datetime-local"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full px-4 py-2.5 bg-(--ink) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-(--text)"
-              />
-            </div>
+        </div>
+        <div className="form-row">
+          <label htmlFor="contest-start" className="form-label">시작</label>
+          <div className="form-control">
+            <input id="contest-start" type="datetime-local" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="input w-auto max-w-full" />
           </div>
+        </div>
+        <div className="form-row">
+          <label htmlFor="contest-end" className="form-label">끝</label>
+          <div className="form-control">
+            <input id="contest-end" type="datetime-local" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="input w-auto max-w-full" />
+          </div>
+        </div>
+      </div>
 
-          <div>
-            <label className="docket-label block text-[11px] text-(--text-dim) mb-2">
-              출제 문제 (클릭한 순서대로 출제 순서가 됩니다)
-            </label>
-            <div className="border border-(--rule) divide-y divide-(--rule) max-h-72 overflow-y-auto">
-              {problems.map((p) => {
-                const order = selectedIds.indexOf(p.id);
-                const selected = order !== -1;
-                return (
+      <h2 className="section-title mt-12">낼 문제</h2>
+      <p className="page-lead">고른 순서대로 A, B, C가 됩니다. 다시 누르면 빠집니다.</p>
+      <div className="sheet-plain mt-5 max-h-80 overflow-y-auto">
+        {problems.length === 0 ? (
+          <p className="notice p-6">
+            등록된 문제가 없습니다. <Link href="/admin/problems" className="text-link">문제를 먼저 등록</Link>해 주세요.
+          </p>
+        ) : (
+          <ul>
+            {problems.map((p) => {
+              const order = selectedIds.indexOf(p.id);
+              const selected = order !== -1;
+              return (
+                <li key={p.id} className="border-t border-line first:border-t-0">
                   <button
-                    key={p.id}
+                    type="button"
+                    aria-pressed={selected}
                     onClick={() => toggleProblem(p.id)}
-                    className={clsx(
-                      "w-full flex items-center gap-3 px-4 py-2.5 text-left transition-colors",
-                      selected
-                        ? "bg-(--seal)/10"
-                        : "hover:bg-(--paper-raised)",
-                    )}
+                    className={`flex w-full items-center gap-3 px-4 py-2.5 text-left ${selected ? "bg-tint font-bold" : "hover:bg-tint/50"}`}
                   >
-                    <span
-                      className={clsx(
-                        "w-5 h-5 shrink-0 border flex items-center justify-center text-[10px] docket-label",
-                        selected
-                          ? "border-(--seal) bg-(--seal) text-(--ink)"
-                          : "border-(--rule-strong) text-transparent",
-                      )}
-                    >
-                      {selected ? order + 1 : <Check size={12} />}
+                    <span className={`inline-flex h-7 w-7 flex-none items-center justify-center rounded-full border-[1.5px] text-sm font-black ${selected ? "border-marker bg-marker text-paper" : "border-print"}`}>
+                      {selected ? letter(order) : ""}
                     </span>
-                    <span className="docket-label text-[10px] text-(--text-faint)">
-                      № {String(p.id).padStart(3, "0")}
-                    </span>
-                    <span className="text-sm text-(--text)">
-                      {p.title}
-                    </span>
+                    <span className="w-10 flex-none tabular-nums text-pencil">{p.id}</span>
+                    <span className="min-w-0 truncate">{p.title}</span>
                   </button>
-                );
-              })}
-              {problems.length === 0 && (
-                <div className="px-4 py-6 text-center text-(--text-dim) text-sm">
-                  등록된 문제가 없습니다.
-                </div>
-              )}
-            </div>
-          </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
 
-          {error && (
-            <div className="flex items-center gap-2">
-              <StampTag label="반려" tone="reject" size="sm" tilt={false} />
-              <p className="text-sm text-(--reject)">{error}</p>
-            </div>
-          )}
+      <div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-3">
+        <button onClick={handleCreate} disabled={submitting} className="btn btn-fill">
+          {submitting ? "여는 중" : "대회 개설"}
+        </button>
+        {error && <p role="alert" className="notice-error">{error}</p>}
+        {created && <p role="status">{created}</p>}
+      </div>
 
-          <button
-            onClick={handleCreate}
-            disabled={submitting}
-            className="w-full py-3 bg-(--seal) hover:bg-(--seal-dim) text-(--ink) font-semibold rounded-sm transition-colors disabled:opacity-50"
-          >
-            {submitting ? "개설 중..." : "콘테스트 개설"}
-          </button>
-        </div>
-
-        {/* 이미 만든 콘테스트 목록 */}
-        <div>
-          <h2 className="docket-label text-[11px] text-(--text-faint) mb-3">
-            기존 콘테스트
-          </h2>
-          <div className="border border-(--rule) divide-y divide-(--rule)">
-            {existing.map((c) => (
-              <div
-                key={c.id}
-                className="px-4 py-3 flex items-center justify-between text-sm"
-              >
-                <span className="text-(--text)">{c.title}</span>
-                <div className="flex items-center gap-4">
-                  <span className="text-(--text-dim) text-xs">
-                    {new Date(c.start_time).toLocaleString()} ~{" "}
-                    {new Date(c.end_time).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </span>
-                  <Link
-                    href={`/admin/contests/${c.id}/results`}
-                    className="docket-label text-[10px] text-(--seal) hover:text-(--seal-dim) transition-colors whitespace-nowrap"
-                  >
-                    결과 보기
-                  </Link>
-                </div>
-              </div>
-            ))}
-            {existing.length === 0 && (
-              <div className="px-4 py-6 text-center text-(--text-dim) text-sm">
-                아직 개설된 콘테스트가 없습니다.
-              </div>
-            )}
-          </div>
-        </div>
+      <h2 className="section-title mt-16">개설한 대회</h2>
+      <div className="sheet-plain mt-4 overflow-hidden">
+        {existing.length === 0 ? (
+          <p className="notice p-6">아직 개설한 대회가 없습니다.</p>
+        ) : (
+          <table className="sheet-table">
+            <thead>
+              <tr>
+                <th>제목</th>
+                <th>기간</th>
+                <th className="w-28"><span className="sr-only">결과</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              {existing.map((c) => (
+                <tr key={c.id}>
+                  <td className="font-bold">{c.title}</td>
+                  <td className="text-sm text-pencil">{formatRange(c.start_time, c.end_time)}</td>
+                  <td>
+                    <Link href={`/admin/contests/${c.id}/results`} className="text-link whitespace-nowrap text-sm">
+                      결과 보기
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

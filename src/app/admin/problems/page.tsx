@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { useRouter } from "next/navigation";
-import { Plus, Trash2 } from "lucide-react";
-import StampTag from "@/components/StampTag";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import AdminGate from "@/components/AdminGate";
 import AdminTabs from "@/components/AdminTabs";
+import Difficulty from "@/components/Difficulty";
+import { DIFFICULTY_LEVELS, difficultyLabel } from "@/lib/difficulty";
 import { errorMessage } from "@/lib/errors";
 
 interface TestCaseDraft {
@@ -20,14 +22,6 @@ interface ProblemRow {
   difficulty: number | null;
 }
 
-const DIFFICULTY_OPTIONS = [
-  { value: 1, label: "경범죄" },
-  { value: 2, label: "단순범죄" },
-  { value: 3, label: "일반범죄" },
-  { value: 4, label: "중범죄" },
-  { value: 5, label: "흉악범죄" },
-];
-
 const emptyTestCase = (): TestCaseDraft => ({
   input_data: "",
   expected_output: "",
@@ -35,9 +29,7 @@ const emptyTestCase = (): TestCaseDraft => ({
 });
 
 export default function AdminProblemsPage() {
-  const router = useRouter();
-  const [checking, setChecking] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { checking, isAdmin } = useIsAdmin();
   const [existing, setExisting] = useState<ProblemRow[]>([]);
 
   const [title, setTitle] = useState("");
@@ -53,27 +45,7 @@ export default function AdminProblemsPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  // 관리자 권한 확인
-  useEffect(() => {
-    (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        router.replace("/");
-        return;
-      }
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("is_admin")
-        .eq("id", session.user.id)
-        .single();
-
-      setIsAdmin(!!profile?.is_admin);
-      setChecking(false);
-    })();
-  }, [router]);
+  const [created, setCreated] = useState<string | null>(null);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -107,15 +79,16 @@ export default function AdminProblemsPage() {
 
   const handleCreate = async () => {
     setError(null);
+    setCreated(null);
 
-    if (!title.trim()) return setError("제목을 입력하세요.");
-    if (!description.trim()) return setError("문제 설명을 입력하세요.");
+    if (!title.trim()) return setError("제목을 적어 주세요.");
+    if (!description.trim()) return setError("문제 설명을 적어 주세요.");
     const validCases = testCases;
     if (validCases.length === 0)
-      return setError("테스트케이스를 하나 이상 입력하세요.");
+      return setError("테스트케이스가 하나 이상 있어야 합니다.");
     if (
       validCases.some((tc) => tc.input_data === "" && tc.expected_output === "") &&
-      !window.confirm("Include test cases with both empty input and empty output?")
+      !window.confirm("입력과 출력이 모두 빈 테스트케이스가 있습니다. 그대로 등록할까요?")
     ) return;
 
     setSubmitting(true);
@@ -154,247 +127,148 @@ export default function AdminProblemsPage() {
         },
         ...prev,
       ]);
+      setCreated(`${problem.id}번 “${problem.title}” 문제를 등록했습니다.`);
       resetForm();
     } catch (err) {
-      setError(errorMessage(err, "등록 중 오류가 발생했습니다."));
+      setError(errorMessage(err, "문제를 등록하지 못했습니다. 다시 눌러 주세요."));
     } finally {
       setSubmitting(false);
     }
   };
 
-  if (checking) {
-    return (
-      <div className="h-screen bg-(--ink) flex items-center justify-center text-(--seal)">
-        Loading...
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="h-screen bg-(--ink) flex flex-col items-center justify-center gap-4 text-center px-6">
-        <StampTag label="기각" tone="reject" size="lg" />
-        <p className="text-(--text-dim)">
-          관리자만 접근할 수 있는 화면입니다.
-        </p>
-      </div>
-    );
-  }
+  if (checking || !isAdmin) return <AdminGate checking={checking} isAdmin={isAdmin} />;
 
   return (
-    <div className="flex-1 py-12 px-4 sm:px-6 lg:px-8 bg-(--ink) min-h-[calc(100vh-64px)]">
-      <div className="max-w-3xl mx-auto">
-        <AdminTabs />
-        <h1 className="text-2xl font-semibold text-(--text) mb-6">
-          문제 등록
-        </h1>
+    <div className="page page-narrow">
+      <AdminTabs />
+      <h1 className="page-title">문제 등록</h1>
 
-        <div className="bg-(--paper) border border-(--rule) p-6 space-y-5 mb-10">
-          <div>
-            <label className="docket-label block text-[11px] text-(--text-dim) mb-1.5">
-              제목
-            </label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full px-4 py-2.5 bg-(--ink) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-(--text)"
-              placeholder="예: 두 수의 합"
-            />
+      <div className="sheet form-sheet mt-8">
+        <div className="form-row">
+          <label htmlFor="problem-title" className="form-label">제목</label>
+          <div className="form-control">
+            <input id="problem-title" value={title} onChange={(e) => setTitle(e.target.value)} className="input" placeholder="두 수의 합" />
           </div>
-
-          <div>
-            <label className="docket-label block text-[11px] text-(--text-dim) mb-1.5">
-              문제 설명
-            </label>
-            <textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={5}
-              className="w-full px-4 py-2.5 bg-(--ink) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-(--text) resize-y font-mono text-sm"
-              placeholder="마크다운으로 작성 가능"
-            />
+        </div>
+        <div className="form-row">
+          <label htmlFor="problem-description" className="form-label">
+            문제 설명
+            <small>마크다운과 $수식$을 쓸 수 있습니다.</small>
+          </label>
+          <div className="form-control">
+            <textarea id="problem-description" value={description} onChange={(e) => setDescription(e.target.value)} rows={6} className="input input-code" />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="docket-label block text-[11px] text-(--text-dim) mb-1.5">
-                입력 설명 (선택)
-              </label>
-              <textarea
-                value={inputDescription}
-                onChange={(e) => setInputDescription(e.target.value)}
-                rows={3}
-                className="w-full px-4 py-2.5 bg-(--ink) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-(--text) resize-y font-mono text-sm"
-              />
-            </div>
-            <div>
-              <label className="docket-label block text-[11px] text-(--text-dim) mb-1.5">
-                출력 설명 (선택)
-              </label>
-              <textarea
-                value={outputDescription}
-                onChange={(e) => setOutputDescription(e.target.value)}
-                rows={3}
-                className="w-full px-4 py-2.5 bg-(--ink) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-(--text) resize-y font-mono text-sm"
-              />
-            </div>
+        </div>
+        <div className="form-row">
+          <label htmlFor="problem-input" className="form-label">
+            입력 설명
+            <small>비워 둘 수 있습니다.</small>
+          </label>
+          <div className="form-control">
+            <textarea id="problem-input" value={inputDescription} onChange={(e) => setInputDescription(e.target.value)} rows={3} className="input input-code" />
           </div>
-
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="docket-label block text-[11px] text-(--text-dim) mb-1.5">
-                시간 제한(ms)
-              </label>
-              <input
-                type="number"
-                value={timeLimitMs}
-                onChange={(e) => setTimeLimitMs(Number(e.target.value))}
-                className="w-full px-4 py-2.5 bg-(--ink) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-(--text)"
-              />
-            </div>
-            <div>
-              <label className="docket-label block text-[11px] text-(--text-dim) mb-1.5">
-                메모리 제한(MB)
-              </label>
-              <input
-                type="number"
-                value={memoryLimitMb}
-                onChange={(e) => setMemoryLimitMb(Number(e.target.value))}
-                className="w-full px-4 py-2.5 bg-(--ink) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-(--text)"
-              />
-            </div>
-            <div>
-              <label className="docket-label block text-[11px] text-(--text-dim) mb-1.5">
-                난이도
-              </label>
-              <select
-                value={difficulty}
-                onChange={(e) => setDifficulty(Number(e.target.value))}
-                className="w-full px-4 py-2.5 bg-(--ink) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-(--text)"
-              >
-                {DIFFICULTY_OPTIONS.map((d) => (
-                  <option key={d.value} value={d.value}>
-                    {d.label}
-                  </option>
-                ))}
-              </select>
-            </div>
+        </div>
+        <div className="form-row">
+          <label htmlFor="problem-output" className="form-label">
+            출력 설명
+            <small>비워 둘 수 있습니다.</small>
+          </label>
+          <div className="form-control">
+            <textarea id="problem-output" value={outputDescription} onChange={(e) => setOutputDescription(e.target.value)} rows={3} className="input input-code" />
           </div>
-
-          {/* 테스트케이스 */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <label className="docket-label text-[11px] text-(--text-dim)">
-                테스트케이스
-              </label>
-              <button
-                onClick={addTestCase}
-                className="docket-label text-[10px] flex items-center gap-1 text-(--seal) hover:text-(--seal-dim) transition-colors"
-              >
-                <Plus size={12} /> 추가
+        </div>
+        <div className="form-row">
+          <label htmlFor="problem-time" className="form-label">시간 제한</label>
+          <div className="form-control flex items-center gap-2">
+            <input id="problem-time" type="number" min={100} step={100} value={timeLimitMs} onChange={(e) => setTimeLimitMs(Number(e.target.value))} className="input w-32" />
+            <span className="text-pencil">ms</span>
+          </div>
+        </div>
+        <div className="form-row">
+          <label htmlFor="problem-memory" className="form-label">메모리 제한</label>
+          <div className="form-control flex items-center gap-2">
+            <input id="problem-memory" type="number" min={16} step={16} value={memoryLimitMb} onChange={(e) => setMemoryLimitMb(Number(e.target.value))} className="input w-32" />
+            <span className="text-pencil">MB</span>
+          </div>
+        </div>
+        <div className="form-row">
+          <span id="problem-difficulty" className="form-label">난이도</span>
+          <div role="group" aria-labelledby="problem-difficulty" className="form-control flex flex-wrap gap-0.5 px-2!">
+            {DIFFICULTY_LEVELS.map((level) => (
+              <button key={level} type="button" className="choice choice-sm" aria-pressed={difficulty === level} onClick={() => setDifficulty(level)}>
+                {difficultyLabel(level)}
               </button>
-            </div>
-
-            <div className="space-y-3">
-              {testCases.map((tc, idx) => (
-                <div
-                  key={idx}
-                  className="border border-(--rule) p-4 relative"
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="docket-label text-[10px] text-(--text-faint)">
-                      #{idx + 1}
-                    </span>
-                    <div className="flex items-center gap-3">
-                      <label className="flex items-center gap-1.5 text-xs text-(--text-dim) cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={tc.is_hidden}
-                          onChange={(e) =>
-                            updateTestCase(idx, { is_hidden: e.target.checked })
-                          }
-                        />
-                        히든(채점 전용, 문제에 노출 안 됨)
-                      </label>
-                      {testCases.length > 1 && (
-                        <button
-                          onClick={() => removeTestCase(idx)}
-                          className="text-(--text-faint) hover:text-(--reject) transition-colors"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <textarea
-                      value={tc.input_data}
-                      onChange={(e) =>
-                        updateTestCase(idx, { input_data: e.target.value })
-                      }
-                      rows={3}
-                      placeholder="입력"
-                      className="w-full px-3 py-2 bg-(--ink) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-(--text) font-mono text-xs resize-y"
-                    />
-                    <textarea
-                      value={tc.expected_output}
-                      onChange={(e) =>
-                        updateTestCase(idx, { expected_output: e.target.value })
-                      }
-                      rows={3}
-                      placeholder="기댓값"
-                      className="w-full px-3 py-2 bg-(--ink) border border-(--rule) rounded-sm focus:outline-none focus:border-(--seal) text-(--text) font-mono text-xs resize-y"
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {error && (
-            <div className="flex items-center gap-2">
-              <StampTag label="반려" tone="reject" size="sm" tilt={false} />
-              <p className="text-sm text-(--reject)">{error}</p>
-            </div>
-          )}
-
-          <button
-            onClick={handleCreate}
-            disabled={submitting}
-            className="w-full py-3 bg-(--seal) hover:bg-(--seal-dim) text-(--ink) font-semibold rounded-sm transition-colors disabled:opacity-50"
-          >
-            {submitting ? "등록 중..." : "문제 등록"}
-          </button>
-        </div>
-
-        {/* 기존 문제 목록 */}
-        <div>
-          <h2 className="docket-label text-[11px] text-(--text-faint) mb-3">
-            기존 문제
-          </h2>
-          <div className="border border-(--rule) divide-y divide-(--rule)">
-            {existing.map((p) => (
-              <div
-                key={p.id}
-                className="px-4 py-3 flex items-center gap-3 text-sm"
-              >
-                <span className="docket-label text-[10px] text-(--text-faint)">
-                  № {String(p.id).padStart(3, "0")}
-                </span>
-                <span className="text-(--text) flex-1">{p.title}</span>
-                <span className="docket-label text-[10px] text-(--text-dim)">
-                  {DIFFICULTY_OPTIONS.find((d) => d.value === p.difficulty)
-                    ?.label ?? "미분류"}
-                </span>
-              </div>
             ))}
-            {existing.length === 0 && (
-              <div className="px-4 py-6 text-center text-(--text-dim) text-sm">
-                아직 등록된 문제가 없습니다.
-              </div>
-            )}
           </div>
         </div>
+      </div>
+
+      <h2 className="section-title mt-12">테스트케이스</h2>
+      <p className="page-lead">숨김으로 표시한 테스트케이스는 제출을 채점할 때만 쓰이고 문제에는 보이지 않습니다.</p>
+      <ol className="mt-5 space-y-3">
+        {testCases.map((tc, idx) => (
+          <li key={idx} className="sheet-plain p-4">
+            <div className="flex items-center justify-between gap-3">
+              <span className="font-extrabold tabular-nums">{idx + 1}번</span>
+              <div className="flex items-center gap-4">
+                <label className="flex items-center gap-2 text-sm">
+                  <input type="checkbox" checked={tc.is_hidden} onChange={(e) => updateTestCase(idx, { is_hidden: e.target.checked })} className="h-4 w-4 accent-(--marker)" />
+                  숨김
+                </label>
+                {testCases.length > 1 && (
+                  <button type="button" onClick={() => removeTestCase(idx)} aria-label={`${idx + 1}번 테스트케이스 삭제`} title="삭제" className="inline-flex h-9 w-9 items-center justify-center rounded-full text-pencil hover:bg-tint hover:text-marker">
+                    <Trash2 size={16} aria-hidden="true" />
+                  </button>
+                )}
+              </div>
+            </div>
+            <div className="mt-2 grid gap-3 sm:grid-cols-2">
+              <label className="block text-sm font-bold text-print-ink">
+                입력
+                <textarea value={tc.input_data} onChange={(e) => updateTestCase(idx, { input_data: e.target.value })} rows={3} className="input input-code mt-1 font-normal" />
+              </label>
+              <label className="block text-sm font-bold text-print-ink">
+                출력
+                <textarea value={tc.expected_output} onChange={(e) => updateTestCase(idx, { expected_output: e.target.value })} rows={3} className="input input-code mt-1 font-normal" />
+              </label>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <button type="button" onClick={addTestCase} className="btn btn-sm btn-line mt-3">테스트케이스 추가</button>
+
+      <div className="mt-10 flex flex-wrap items-center gap-x-5 gap-y-3">
+        <button onClick={handleCreate} disabled={submitting} className="btn btn-fill">
+          {submitting ? "등록하는 중" : "문제 등록"}
+        </button>
+        {error && <p role="alert" className="notice-error">{error}</p>}
+        {created && <p role="status">{created}</p>}
+      </div>
+
+      <h2 className="section-title mt-16">등록된 문제</h2>
+      <div className="sheet-plain mt-4 overflow-hidden">
+        {existing.length === 0 ? (
+          <p className="notice p-6">아직 등록된 문제가 없습니다.</p>
+        ) : (
+          <table className="sheet-table">
+            <thead>
+              <tr>
+                <th className="w-20">번호</th>
+                <th>제목</th>
+                <th className="w-36">난이도</th>
+              </tr>
+            </thead>
+            <tbody>
+              {existing.map((p) => (
+                <tr key={p.id}>
+                  <td className="font-extrabold tabular-nums">{p.id}</td>
+                  <td>{p.title}</td>
+                  <td><Difficulty value={p.difficulty} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
       </div>
     </div>
   );

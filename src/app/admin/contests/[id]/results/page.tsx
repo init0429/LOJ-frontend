@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { ChevronLeft, X } from "lucide-react";
-import clsx from "clsx";
-import StampTag, { StampTone, statusLabel } from "@/components/StampTag";
-import Editor from "@monaco-editor/react";
-import { useTheme } from "@/hooks/useTheme";
-import { MONACO_LANGUAGE } from "@/lib/languages";
+import { supabase } from "@/lib/supabase";
+import { useIsAdmin } from "@/hooks/useIsAdmin";
+import AdminGate from "@/components/AdminGate";
+import CodeEditor from "@/components/CodeEditor";
+import Verdict from "@/components/Verdict";
+import { formatDateTime } from "@/lib/format";
+import { LANGUAGE_LABELS } from "@/lib/languages";
 import type { Contest } from "@/lib/types";
 
 interface ContestProblem {
@@ -32,21 +33,12 @@ interface Participant {
   username: string;
 }
 
-const statusTone = (status: string): StampTone => {
-  if (status === "Accepted") return "accept";
-  if (status === "Pending" || status === "Running") return "pending";
-  if (!status) return "neutral";
-  return "reject";
-};
+const letter = (index: number) => String.fromCharCode(65 + (index % 26));
 
 export default function ContestResultsPage() {
-  const { theme } = useTheme();
   const params = useParams();
-  const router = useRouter();
   const contestId = params.id as string;
-
-  const [checking, setChecking] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
+  const { checking, isAdmin } = useIsAdmin();
 
   const [contest, setContest] = useState<Contest | null>(null);
   const [problems, setProblems] = useState<ContestProblem[]>([]);
@@ -61,26 +53,6 @@ export default function ContestResultsPage() {
     problemId: number;
   } | null>(null);
   const [attemptIdx, setAttemptIdx] = useState(0);
-
-  // 관리자 권한 확인
-  useEffect(() => {
-    (async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-      if (!session) {
-        router.replace("/");
-        return;
-      }
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("is_admin")
-        .eq("id", session.user.id)
-        .single();
-      setIsAdmin(!!profile?.is_admin);
-      setChecking(false);
-    })();
-  }, [router]);
 
   useEffect(() => {
     if (!isAdmin || !contestId) return;
@@ -125,6 +97,15 @@ export default function ContestResultsPage() {
     })();
   }, [isAdmin, contestId]);
 
+  useEffect(() => {
+    if (!viewing) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setViewing(null);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [viewing]);
+
   const matrix = useMemo(() => {
     const map = new Map<string, SubmissionRow[]>();
     submissions.forEach((s) => {
@@ -150,261 +131,160 @@ export default function ContestResultsPage() {
     setAttemptIdx(0);
   };
 
+  if (checking || !isAdmin) return <AdminGate checking={checking} isAdmin={isAdmin} />;
+  if (loading) return <p role="status" className="notice page">대회 결과를 불러오는 중…</p>;
+
   const currentAttempts = viewing
     ? matrix.get(`${viewing.userId}:${viewing.problemId}`) || []
     : [];
   const currentAttempt = currentAttempts[attemptIdx];
   const viewingUsername =
-    participants.find((p) => p.user_id === viewing?.userId)?.username ??
-    "알 수 없음";
+    participants.find((p) => p.user_id === viewing?.userId)?.username ?? "이름 없음";
   const viewingProblemTitle =
     problems.find((p) => p.id === viewing?.problemId)?.title ?? "";
-
-  if (checking || (isAdmin && loading)) {
-    return (
-      <div className="h-screen bg-(--ink) flex items-center justify-center text-(--seal)">
-        Loading...
-      </div>
-    );
-  }
-
-  if (!isAdmin) {
-    return (
-      <div className="h-screen bg-(--ink) flex flex-col items-center justify-center gap-4 text-center px-6">
-        <StampTag label="기각" tone="reject" size="lg" />
-        <p className="text-(--text-dim)">
-          관리자만 접근할 수 있는 화면입니다.
-        </p>
-      </div>
-    );
-  }
-
-  const selectedParticipant = participants.find(
-    (p) => p.user_id === selectedUser,
-  );
+  const selectedParticipant = participants.find((p) => p.user_id === selectedUser);
 
   return (
-    <div className="flex-1 py-12 px-4 sm:px-6 lg:px-8 bg-(--ink) min-h-[calc(100vh-64px)]">
-      <div className="max-w-4xl mx-auto">
-        <Link
-          href="/admin/contests"
-          className="docket-label text-[11px] text-(--text-dim) hover:text-(--text) transition-colors inline-flex items-center gap-1 mb-6"
-        >
-          <ChevronLeft size={14} /> 콘테스트 관리로
-        </Link>
+    <div className="page">
+      <Link href="/admin/contests" className="btn btn-sm btn-line pl-2.5">
+        <ChevronLeft size={16} aria-hidden="true" />
+        대회 관리
+      </Link>
 
-        <div className="mb-8 border-b border-(--rule) pb-4">
-          <div className="docket-label text-[11px] text-(--text-faint) mb-1">
-            Verdict Record
-          </div>
-          <h1 className="text-2xl font-semibold text-(--text)">
-            {contest?.title} · 심리 결과
-          </h1>
-          <p className="text-(--text-dim) text-sm mt-1">
-            참가자 {participants.length}명 · 문제 {problems.length}개
-          </p>
-        </div>
+      <h1 className="page-title mt-6">{contest?.title ?? "대회"} 결과</h1>
+      <p className="page-lead">
+        제출한 사람 {participants.length}명, 문제 {problems.length}개. 이름을 누르면 문제별 결과와 코드를 볼 수 있습니다.
+      </p>
 
-        {/* 1단계: 참가자 목록 (이름 + 점수만) */}
-        {!selectedUser &&
-          (participants.length === 0 ? (
-            <div className="text-center py-20 bg-(--paper) border border-(--rule)">
-              <p className="text-(--text-dim)">
-                아직 제출한 참가자가 없습니다.
-              </p>
-            </div>
+      {!selectedParticipant ? (
+        <div className="sheet mt-8 overflow-hidden">
+          {participants.length === 0 ? (
+            <p className="notice p-8">아직 제출한 사람이 없습니다.</p>
           ) : (
-            <div className="bg-(--paper) border border-(--rule) overflow-hidden">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead className="bg-(--paper-raised) docket-label text-[10px] text-(--text-dim) border-b border-(--rule)">
-                  <tr>
-                    <th className="px-6 py-3 w-16 text-center">순위</th>
-                    <th className="px-6 py-3">참가자</th>
-                    <th className="px-6 py-3 w-32 text-center">해결</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-(--rule)">
-                  {participants
-                    .slice()
-                    .sort(
-                      (a, b) => solvedCount(b.user_id) - solvedCount(a.user_id),
-                    )
-                    .map((participant, i) => (
-                      <tr
-                        key={participant.user_id}
-                        onClick={() => setSelectedUser(participant.user_id)}
-                        className="hover:bg-(--paper-raised) cursor-pointer transition-colors border-l-2 border-l-transparent hover:border-l-(--seal)"
-                      >
-                        <td className="px-6 py-3.5 text-center docket-label text-[13px] text-(--text-dim)">
-                          {String(i + 1).padStart(2, "0")}
-                        </td>
-                        <td className="px-6 py-3.5 font-medium text-(--text)">
+            <table className="sheet-table">
+              <thead>
+                <tr>
+                  <th className="w-20">순위</th>
+                  <th>이름</th>
+                  <th className="num w-36 pr-9!">맞힌 문제</th>
+                </tr>
+              </thead>
+              <tbody>
+                {participants
+                  .slice()
+                  .sort((a, b) => solvedCount(b.user_id) - solvedCount(a.user_id))
+                  .map((participant, i) => (
+                    <tr key={participant.user_id} className="row-link relative">
+                      <td className="font-extrabold tabular-nums">{i + 1}</td>
+                      <td>
+                        <button className="font-bold after:absolute after:inset-0" onClick={() => setSelectedUser(participant.user_id)}>
                           {participant.username}
-                        </td>
-                        <td className="px-6 py-3.5 text-center font-mono text-(--text)">
-                          {solvedCount(participant.user_id)}/{problems.length}
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          ))}
+                        </button>
+                      </td>
+                      <td className="num py-1! pr-9!">
+                        <span className="hand text-[28px]">{solvedCount(participant.user_id)}</span>
+                        <span className="text-pencil"> / {problems.length}</span>
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      ) : (
+        <section className="mt-10" aria-labelledby="participant-name">
+          <button onClick={() => setSelectedUser(null)} className="btn btn-sm btn-line pl-2.5">
+            <ChevronLeft size={16} aria-hidden="true" />
+            전체 순위
+          </button>
+          <h2 id="participant-name" className="section-title mt-5">{selectedParticipant.username}</h2>
+          <p className="text-pencil">
+            {problems.length}문제 중 {solvedCount(selectedParticipant.user_id)}문제를 맞혔습니다. 제출한 문제를 누르면 코드가 열립니다.
+          </p>
 
-        {/* 2단계: 선택한 참가자의 문제별 판정 표 */}
-        {selectedUser && selectedParticipant && (
-          <div>
-            <button
-              onClick={() => setSelectedUser(null)}
-              className="docket-label text-[11px] text-(--text-dim) hover:text-(--text) transition-colors inline-flex items-center gap-1 mb-5"
-            >
-              <ChevronLeft size={14} /> 참가자 목록으로
-            </button>
-
-            <div className="mb-5">
-              <div className="docket-label text-[11px] text-(--text-faint) mb-1">
-                Participant
-              </div>
-              <h2 className="text-xl font-semibold text-(--text)">
-                {selectedParticipant.username}
-              </h2>
-              <p className="text-(--text-dim) text-sm mt-1">
-                {solvedCount(selectedUser)}/{problems.length}문제 해결
-              </p>
-            </div>
-
-            <div className="bg-(--paper) border border-(--rule) overflow-hidden">
-              <table className="w-full text-left text-sm border-collapse">
-                <thead className="bg-(--paper-raised) docket-label text-[10px] text-(--text-dim) border-b border-(--rule)">
-                  <tr>
-                    <th className="px-6 py-3 w-28">사건번호</th>
-                    <th className="px-6 py-3">제목</th>
-                    <th className="px-6 py-3 w-32 text-center">판정</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-(--rule)">
-                  {problems.map((p) => {
-                    const status = bestStatus(selectedUser, p.id);
-                    return (
-                      <tr
-                        key={p.id}
-                        onClick={() => status && openViewer(selectedUser, p.id)}
-                        className={clsx(
-                          "transition-colors border-l-2 border-l-transparent",
-                          status
-                            ? "hover:bg-(--paper-raised) cursor-pointer hover:border-l-(--seal)"
-                            : "opacity-60",
+          <div className="sheet mt-5 overflow-hidden">
+            <table className="sheet-table">
+              <thead>
+                <tr>
+                  <th className="w-20">문제</th>
+                  <th>제목</th>
+                  <th className="w-44">결과</th>
+                </tr>
+              </thead>
+              <tbody>
+                {problems.map((p, i) => {
+                  const status = bestStatus(selectedParticipant.user_id, p.id);
+                  return (
+                    <tr key={p.id} className={status ? "row-link relative" : undefined}>
+                      <td className="font-extrabold">{letter(i)}</td>
+                      <td>
+                        {status ? (
+                          <button className="font-bold after:absolute after:inset-0" onClick={() => openViewer(selectedParticipant.user_id, p.id)}>
+                            {p.title}
+                          </button>
+                        ) : (
+                          <span className="text-pencil">{p.title}</span>
                         )}
-                      >
-                        <td className="px-6 py-3.5 docket-label text-[11px] text-(--text-dim)">
-                          № {String(p.id).padStart(3, "0")}
-                        </td>
-                        <td className="px-6 py-3.5 text-(--text)">
-                          {p.title}
-                        </td>
-                        <td className="px-6 py-3.5 text-center">
-                          {status ? (
-                            <StampTag
-                              label={statusLabel(status)}
-                              tone={statusTone(status)}
-                              size="sm"
-                            />
-                          ) : (
-                            <span className="text-(--text-faint) text-xs">
-                              미제출
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+                      </td>
+                      <td className="py-2!">
+                        {status ? <Verdict status={status} size="sm" /> : <span className="text-sm text-pencil">제출 없음</span>}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
-        )}
-      </div>
+        </section>
+      )}
 
-      {/* 코드 열람 패널 */}
       {viewing && (
-        <div
-          className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center p-6"
-          onClick={() => setViewing(null)}
-        >
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-marker/60 p-4" onClick={() => setViewing(null)}>
           <div
-            className="bg-(--paper) border border-(--rule) w-full max-w-3xl h-[85vh] flex flex-col"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="viewer-title"
+            className="sheet-plain flex max-h-[90dvh] w-full max-w-3xl flex-col overflow-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between px-5 py-4 border-b border-(--rule)">
-              <div>
-                <div className="docket-label text-[10px] text-(--text-faint)">
-                  {viewingUsername}
-                </div>
-                <div className="text-(--text) font-semibold">
-                  {viewingProblemTitle}
-                </div>
+            <div className="flex items-start justify-between gap-4 border-b border-line px-5 py-4">
+              <div className="min-w-0">
+                <h2 id="viewer-title" className="section-title truncate">{viewingProblemTitle}</h2>
+                <p className="text-sm text-pencil">{viewingUsername}의 제출</p>
               </div>
-              <button
-                onClick={() => setViewing(null)}
-                className="text-(--text-dim) hover:text-(--text)"
-              >
-                <X size={20} />
+              <button onClick={() => setViewing(null)} aria-label="닫기" title="닫기" className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-full text-pencil hover:bg-tint hover:text-marker">
+                <X size={20} aria-hidden="true" />
               </button>
             </div>
 
-            {/* 시도 여러 번이면 탭으로 전환 */}
             {currentAttempts.length > 1 && (
-              <div className="flex gap-1 px-5 pt-3 flex-wrap">
+              <div role="group" aria-label="제출 고르기" className="flex flex-wrap gap-0.5 border-b border-line px-3 py-1.5">
                 {currentAttempts.map((a, i) => (
-                  <button
-                    key={a.id}
-                    onClick={() => setAttemptIdx(i)}
-                    className={clsx(
-                      "docket-label text-[10px] px-3 py-1.5 border transition-colors",
-                      i === attemptIdx
-                        ? "border-(--seal) text-(--seal) bg-(--seal)/10"
-                        : "border-(--rule) text-(--text-dim) hover:text-(--text)",
-                    )}
-                  >
-                    #{currentAttempts.length - i}
+                  <button key={a.id} className="choice choice-sm" aria-pressed={i === attemptIdx} onClick={() => setAttemptIdx(i)}>
+                    {currentAttempts.length - i}번째
                   </button>
                 ))}
               </div>
             )}
 
             {currentAttempt && (
-              <div className="flex-1 min-h-0 flex flex-col p-5">
-                <div className="flex items-center gap-3 mb-3 shrink-0">
-                  <StampTag
-                    label={statusLabel(currentAttempt.status)}
-                    tone={statusTone(currentAttempt.status)}
-                    size="sm"
-                  />
-                  <span className="docket-label text-[10px] text-(--text-faint)">
-                    {currentAttempt.language} ·{" "}
-                    {new Date(currentAttempt.created_at).toLocaleString()}
-                  </span>
+              <>
+                <div className="flex flex-wrap items-center gap-x-6 gap-y-1 px-5 py-3">
+                  <Verdict status={currentAttempt.status} size="sm" />
+                  <span className="text-sm">{LANGUAGE_LABELS[currentAttempt.language] ?? currentAttempt.language}</span>
+                  <span className="text-sm text-pencil">{formatDateTime(currentAttempt.created_at)}</span>
                 </div>
-                <div className="h-105 border border-(--rule) overflow-hidden shrink-0">
-                  <Editor
+                <div className="border-t border-line">
+                  <CodeEditor
                     key={currentAttempt.id}
-                    height="420px"
-                    language={
-                      MONACO_LANGUAGE[currentAttempt.language] ?? "plaintext"
-                    }
-                    theme={theme === "dark" ? "vs-dark" : "light"}
+                    height="min(420px, 55dvh)"
+                    language={currentAttempt.language}
                     value={currentAttempt.code}
-                    options={{
-                      readOnly: true,
-                      minimap: { enabled: false },
-                      fontSize: 13,
-                      fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                      scrollBeyondLastLine: false,
-                      padding: { top: 12 },
-                    }}
+                    readOnly
+                    fontSize={14}
                   />
                 </div>
-              </div>
+              </>
             )}
           </div>
         </div>
