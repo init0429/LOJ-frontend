@@ -7,7 +7,11 @@ export const metadata: Metadata = {
   title: "LOJ",
   description: "문제를 풀어 제출하면 바로 채점하는 온라인 저지입니다.",
   icons: {
-    icon: "favicon.ico",
+    icon: [
+      { url: "/favicon.ico", sizes: "48x48" },
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    apple: "/apple-touch-icon.png",
   },
 };
 
