@@ -7,10 +7,13 @@ import GradeMark from "@/components/GradeMark";
 export default function ProblemNumber({
   id,
   mark = null,
+  draw = false,
   size = "md",
 }: {
-  id: number;
+  /** 문제 번호. 대회에서는 A, B, C 같은 순서 글자를 넘긴다. */
+  id: number | string;
   mark?: "correct" | "wrong" | null;
+  draw?: boolean;
   size?: "md" | "lg";
 }) {
   const box = size === "lg" ? "w-14 h-14 text-2xl" : "w-9 h-9 text-[15px]";
@@ -19,7 +22,7 @@ export default function ProblemNumber({
       {id}
       {mark && (
         <>
-          <GradeMark kind={mark} className="absolute -inset-1" />
+          <GradeMark kind={mark} draw={draw} className="absolute -inset-1" />
           <span className="sr-only">{mark === "correct" ? " (맞힌 문제)" : " (틀린 문제)"}</span>
         </>
       )}

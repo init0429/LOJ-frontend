@@ -31,6 +31,8 @@ export interface Submission {
 
 export interface TestResult {
   status: string;
+  /** 컴파일 오류처럼 테스트케이스와 무관한 메시지 */
+  message?: string;
   test_cases?: {
     status: string;
     input: string;

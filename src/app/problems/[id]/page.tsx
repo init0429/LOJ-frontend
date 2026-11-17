@@ -1,35 +1,29 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
-import Editor from "@monaco-editor/react";
-import ThemeToggle from "@/components/ThemeToggle";
-import { useTheme } from "@/hooks/useTheme";
-import { useSubmissionState } from "@/hooks/useSubmissionState";
-import { Play, Send, ChevronLeft } from "lucide-react";
-import clsx from "clsx";
+import Link from "next/link";
+import { useParams } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
 import {
   Panel,
   Group as PanelGroup,
   Separator as PanelResizeHandle,
 } from "react-resizable-panels";
-import ProblemContent from "@/components/ProblemContent";
-import StampTag, { StampTone, statusLabel } from "@/components/StampTag";
-import { getDifficultyMeta } from "@/lib/difficulty";
-import { MONACO_LANGUAGE, STARTER_CODE } from "@/lib/languages";
+import { supabase } from "@/lib/supabase";
+import { useSubmissionState } from "@/hooks/useSubmissionState";
+import CodeEditor from "@/components/CodeEditor";
 import LanguageSelect from "@/components/LanguageSelect";
-import type { Problem, TestCase, Submission } from "@/lib/types";
-import { submitCode, testCode } from "@/lib/judge-api";
+import ProblemSheet from "@/components/ProblemSheet";
+import SubmissionResult from "@/components/SubmissionResult";
+import TestRunResult from "@/components/TestRunResult";
+import ThemeToggle from "@/components/ThemeToggle";
+import Verdict from "@/components/Verdict";
 import { errorMessage } from "@/lib/errors";
-
-// 채점 상태 문자열을 도장 색상으로 매핑
-const statusTone = (status: string): StampTone => {
-  if (status === "Accepted") return "accept";
-  if (status === "Pending" || status === "Running") return "pending";
-  if (!status) return "neutral";
-  return "reject"; // Wrong Answer / Time Limit Exceeded / Runtime Error / Compile Error / System Error
-};
+import { formatDateTime } from "@/lib/format";
+import { submitCode, testCode } from "@/lib/judge-api";
+import { LANGUAGE_LABELS, STARTER_CODE } from "@/lib/languages";
+import type { Problem, Submission, TestCase, TestResult } from "@/lib/types";
+import { isJudging } from "@/lib/verdict";
 
 export default function ProblemWorkspace() {
   const params = useParams();
@@ -37,21 +31,16 @@ export default function ProblemWorkspace() {
 }
 
 function ProblemWorkspaceContent() {
-  const { theme } = useTheme();
   const params = useParams();
-  const router = useRouter();
   const problemId = params.id as string;
 
   const [problem, setProblem] = useState<Problem | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const [solvedBefore, setSolvedBefore] = useState(false);
   const [history, setHistory] = useState<Submission[]>([]);
-  const [activeLeftTab, setActiveLeftTab] = useState<
-    "description" | "history"
-  >("description");
-  const [activeConsoleTab, setActiveConsoleTab] = useState<
-    "testcases" | "result" | "submission"
-  >("testcases");
+  const [activeLeftTab, setActiveLeftTab] = useState<"description" | "history">("description");
+  const [activeConsoleTab, setActiveConsoleTab] = useState<"run" | "submission">("run");
 
   const [code, setCode] = useState(STARTER_CODE["python"]);
   const [language, setLanguage] = useState("python");
@@ -60,7 +49,6 @@ function ProblemWorkspaceContent() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
   const [historyLoading, setHistoryLoading] = useState(false);
-  const [caseIndex, setCaseIndex] = useState(0);
   const requestBusy = useRef(false);
 
   const handleLanguageChange = (newLanguage: string) => {
@@ -73,7 +61,11 @@ function ProblemWorkspaceContent() {
   const status = useSubmissionState(subId);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+
+  const judging = subId !== null && isJudging(status);
+  const justSolved = subId !== null && status === "Accepted";
 
   useEffect(() => {
     if (!problemId) return;
@@ -86,7 +78,7 @@ function ProblemWorkspaceContent() {
         .single();
       if (cancelled) return;
       if (error || !data) {
-        setLoadError("문제를 불러올 수 없습니다. 주소와 접근 권한을 확인하세요.");
+        setLoadError("문제를 불러오지 못했습니다. 주소가 맞는지 확인해 주세요.");
         return;
       }
       setLoadError(null);
@@ -99,6 +91,18 @@ function ProblemWorkspaceContent() {
         .eq("is_hidden", false)
         .order("id");
       if (!cancelled && testCasesData) setTestCases(testCasesData);
+
+      // 예전에 맞힌 문제면 번호에 동그라미를 그려 둔다.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled || !session) return;
+      const { data: accepted } = await supabase
+        .from("submissions")
+        .select("id")
+        .eq("problem_id", problemId)
+        .eq("user_id", session.user.id)
+        .eq("status", "Accepted")
+        .limit(1);
+      if (!cancelled && accepted?.length) setSolvedBefore(true);
     };
     fetchProblem();
     return () => { cancelled = true; };
@@ -114,7 +118,7 @@ function ProblemWorkspaceContent() {
         setHistoryError(null);
         if (!session) {
           setHistory([]);
-          setHistoryError("로그인하면 내 제출 기록을 확인할 수 있습니다.");
+          setHistoryError("로그인하면 내 제출을 볼 수 있습니다.");
           setHistoryLoading(false);
           return;
         }
@@ -126,7 +130,7 @@ function ProblemWorkspaceContent() {
           .order("created_at", { ascending: false });
         if (cancelled) return;
         setHistory(data ?? []);
-        if (error) setHistoryError("제출 기록을 불러오지 못했습니다. 탭을 다시 열어 주세요.");
+        if (error) setHistoryError("제출 기록을 불러오지 못했습니다. 탭을 다시 눌러 주세요.");
         setHistoryLoading(false);
       };
       fetchHistory();
@@ -145,12 +149,12 @@ function ProblemWorkspaceContent() {
 
     try {
       setSubId(await submitCode({
-          problem_id: parseInt(problemId, 10),
-          language,
-          code,
+        problem_id: parseInt(problemId, 10),
+        language,
+        code,
       }));
     } catch (err) {
-      setSubmitError(errorMessage(err, "제출하지 못했습니다. 다시 시도하세요."));
+      setSubmitError(errorMessage(err, "제출하지 못했습니다. 다시 눌러 주세요."));
     } finally {
       setIsSubmitting(false);
       requestBusy.current = false;
@@ -161,33 +165,19 @@ function ProblemWorkspaceContent() {
     if (requestBusy.current || !code.trim()) return;
     requestBusy.current = true;
     setIsTesting(true);
-    setActiveConsoleTab("result");
+    setTestError(null);
+    setActiveConsoleTab("run");
     setMobilePane("code");
-    setTestResult("코드 실행 중...");
 
     try {
-      const result = await testCode({
-          problem_id: parseInt(problemId, 10),
-          language,
-          code,
-      });
-
-      // 결과 포맷팅 (콘솔 로그 형태, 전부 한글로 통일)
-      let output = `최종 결과: ${statusLabel(result.status)}\n\n`;
-
-      if (result.test_cases) {
-        result.test_cases.forEach((tc, i) => {
-          output += `[테스트케이스 ${i + 1}] - ${statusLabel(tc.status)}\n`;
-          output += `입력값: ${tc.input.trim()}\n`;
-          output += `기댓값: ${tc.expected.trim()}\n`;
-          output += `실제값: ${tc.actual.trim()}\n`;
-          output += `------------------------\n`;
-        });
-      }
-
-      setTestResult(output);
+      setTestResult(await testCode({
+        problem_id: parseInt(problemId, 10),
+        language,
+        code,
+      }));
     } catch (err) {
-      setTestResult(`실행 오류: ${errorMessage(err, "알 수 없는 오류")}`);
+      setTestResult(null);
+      setTestError(errorMessage(err, "예제를 실행하지 못했습니다. 다시 눌러 주세요."));
     } finally {
       setIsTesting(false);
       requestBusy.current = false;
@@ -195,303 +185,132 @@ function ProblemWorkspaceContent() {
   };
 
   if (loadError) {
-    return <div role="alert" className="p-8 text-(--reject)">{loadError}<button className="block mt-4 underline" onClick={() => router.push("/problems")}>문제 목록으로 돌아가기</button></div>;
-  }
-
-  if (!problem) {
     return (
-      <div className="h-screen bg-(--ink) flex items-center justify-center text-(--seal)">
-        Loading...
+      <div className="page page-narrow">
+        <p role="alert" className="notice-error">{loadError}</p>
+        <Link href="/problems" className="btn btn-line mt-6">문제 목록으로 돌아가기</Link>
       </div>
     );
   }
 
+  if (!problem) {
+    return <p role="status" className="notice page">문제를 불러오는 중…</p>;
+  }
+
+  const busy = isTesting || isSubmitting;
+
   return (
-    <div className="problem-workspace h-dvh flex flex-col bg-(--ink) text-(--text) overflow-hidden font-sans" data-mobile-pane={mobilePane}>
-      {/* Workspace Header */}
-      <header className="workspace-header bg-(--paper) border-b border-(--rule) flex flex-wrap gap-3 items-center justify-between px-3 py-2 shrink-0">
+    <div className="problem-workspace flex h-dvh flex-col overflow-hidden" data-mobile-pane={mobilePane}>
+      <header className="flex flex-none flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b-[1.5px] border-print bg-paper px-3 py-2">
         <div className="flex min-w-0 items-center gap-3">
-          <button
-            onClick={() => router.push("/problems")}
-            className="text-(--text-dim) hover:text-(--text) transition-colors flex items-center gap-1 bg-(--rule) hover:bg-(--rule-strong) px-3 py-1.5 rounded-sm text-sm"
-          >
-            <ChevronLeft size={16} /> 목록
-          </button>
-          <div className="flex items-center gap-2">
-            <span className="docket-label text-(--seal) bg-(--seal)/10 px-2 py-0.5 text-xs">
-              № {String(problem.id).padStart(3, "0")}
-            </span>
-            <h1 className="font-semibold text-(--text) truncate max-w-[40vw]">
-              {problem.title}
-            </h1>
-          </div>
+          <Link href="/problems" className="btn btn-sm btn-line pl-2.5">
+            <ChevronLeft size={16} aria-hidden="true" />
+            문제 목록
+          </Link>
+          <p className="truncate font-extrabold">
+            <span className="mr-2 tabular-nums text-print-ink">{problem.id}</span>
+            {problem.title}
+          </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <ThemeToggle />
-          <button
-            onClick={handleTest}
-            disabled={isTesting || isSubmitting || !code.trim()}
-            className="flex items-center gap-2 bg-(--rule) hover:bg-(--rule-strong) text-(--text) px-4 py-1.5 rounded-sm font-medium transition-colors disabled:opacity-50 text-sm"
-          >
-            <Play size={14} className={isTesting ? "animate-pulse" : ""} />{" "}
-            {isTesting ? "실행 중..." : "실행"}
+          <button onClick={handleTest} disabled={busy || !code.trim()} className="btn btn-sm btn-line">
+            {isTesting ? "실행하는 중" : "예제 실행"}
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={isSubmitting || isTesting || !code.trim() || status === "Pending" || status === "Running"}
-            className="flex items-center gap-2 bg-(--seal) hover:bg-(--seal-dim) text-(--ink) px-5 py-1.5 rounded-sm font-semibold transition-colors disabled:opacity-50 text-sm"
-          >
-            <Send size={14} /> {isSubmitting ? "제출 중..." : status === "Pending" || status === "Running" ? "채점 중..." : "제출"}
+          <button onClick={handleSubmit} disabled={busy || judging || !code.trim()} className="btn btn-sm btn-fill">
+            {isSubmitting ? "제출하는 중" : judging ? "채점하는 중" : "제출"}
           </button>
         </div>
       </header>
-      <div className="workspace-mobile-switch" aria-label="작업 영역 선택">
-        <button aria-pressed={mobilePane === "description"} onClick={() => setMobilePane("description")}>문제 읽기</button>
-        <button aria-pressed={mobilePane === "code"} onClick={() => setMobilePane("code")}>코드 작성 · 결과</button>
+
+      <div role="group" aria-label="보이는 영역" className="workspace-mobile-switch">
+        <button className="choice" aria-pressed={mobilePane === "description"} onClick={() => setMobilePane("description")}>문제</button>
+        <button className="choice" aria-pressed={mobilePane === "code"} onClick={() => setMobilePane("code")}>코드와 결과</button>
       </div>
 
-      {/* Resizable Workspace */}
-      <div className="flex-1 overflow-hidden p-2 gap-2 flex">
-        <PanelGroup
-          orientation="horizontal"
-          className="workspace-panels w-full h-full overflow-hidden"
-        >
-          {/* Left Pane (Description/Result) */}
-          <Panel
-            defaultSize="45%"
-            minSize="25%"
-            className="workspace-description bg-(--paper) flex flex-col rounded-lg border border-(--rule)"
-          >
-            <div className="flex bg-(--paper) border-b border-(--rule) pt-2 px-2 gap-1 overflow-x-auto no-scrollbar shrink-0">
-              {([
-                { id: "description", label: "문제 설명" },
-                { id: "history", label: "내 제출 기록" },
-              ] as const).map((tab) => (
-                <button
-                  key={tab.id}
-                  aria-pressed={activeLeftTab === tab.id}
-                  onClick={() => setActiveLeftTab(tab.id)}
-                  className={clsx(
-                    "px-4 py-2 text-sm font-medium rounded-t-sm transition-colors whitespace-nowrap",
-                    activeLeftTab === tab.id
-                      ? "bg-(--rule) text-(--seal)"
-                      : "text-(--text-dim) hover:text-(--text) hover:bg-(--rule)/50",
-                  )}
-                >
-                  {tab.label}
-                </button>
-              ))}
+      <div className="flex flex-1 overflow-hidden p-2">
+        <PanelGroup orientation="horizontal" className="workspace-panels h-full w-full overflow-hidden">
+          <Panel defaultSize="46%" minSize="25%" className="workspace-description sheet flex flex-col overflow-hidden">
+            <div role="group" aria-label="문제지 보기" className="flex flex-none gap-1 border-b border-line px-3 py-1.5">
+              <button className="choice choice-sm" aria-pressed={activeLeftTab === "description"} onClick={() => setActiveLeftTab("description")}>문제</button>
+              <button className="choice choice-sm" aria-pressed={activeLeftTab === "history"} onClick={() => setActiveLeftTab("history")}>내 제출</button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 scrollbar-thin scrollbar-thumb-(--rule-strong)">
+            <div className="flex-1 overflow-y-auto p-6 sm:p-8">
               {activeLeftTab === "description" && (
-                <div className="prose max-w-none">
-                  <h2 className="text-2xl font-bold mb-4">{problem.title}</h2>
-                  <div className="flex gap-3 mb-6 text-xs font-medium flex-wrap">
-                    <span
-                      className="docket-label px-2 py-1 border"
-                      style={{
-                        color: getDifficultyMeta(problem.difficulty).color,
-                        borderColor: getDifficultyMeta(problem.difficulty)
-                          .color,
-                        backgroundColor: `color-mix(in srgb, ${getDifficultyMeta(problem.difficulty).color} 10%, transparent)`,
-                      }}
-                    >
-                      {getDifficultyMeta(problem.difficulty).label}
-                    </span>
-                    <span className="bg-(--rule) text-(--text) px-2 py-1 rounded border border-(--rule-strong)">
-                      시간: {problem.time_limit_ms}ms
-                    </span>
-                    <span className="bg-(--rule) text-(--text) px-2 py-1 rounded border border-(--rule-strong)">
-                      메모리: {problem.memory_limit_mb}MB
-                    </span>
-                  </div>
-
-                  {/* 문제 설명 */}
-                  <section className="mb-6">
-                    <h3 className="text-base font-semibold text-(--text) mb-3">
-                      문제
-                    </h3>
-                    <ProblemContent content={problem.description} />
-                  </section>
-
-                  {/* 입력 조건 */}
-                  {problem.input_description && (
-                    <section className="mb-6">
-                      <h3 className="text-base font-semibold text-(--text) mb-3">
-                        입력
-                      </h3>
-                      <div className="bg-(--ink)/50 p-4 rounded-sm border border-(--rule)/50">
-                        <ProblemContent content={problem.input_description} />
-                      </div>
-                    </section>
-                  )}
-
-                  {/* 출력 조건 */}
-                  {problem.output_description && (
-                    <section className="mb-6">
-                      <h3 className="text-base font-semibold text-(--text) mb-3">
-                        출력
-                      </h3>
-                      <div className="bg-(--ink)/50 p-4 rounded-sm border border-(--rule)/50">
-                        <ProblemContent content={problem.output_description} />
-                      </div>
-                    </section>
-                  )}
-                </div>
+                <ProblemSheet
+                  problem={problem}
+                  examples={testCases}
+                  mark={solvedBefore || justSolved ? "correct" : null}
+                  drawMark={justSolved && !solvedBefore}
+                />
               )}
 
               {activeLeftTab === "history" && (
-                <div className="flex flex-col gap-3">
-                  <h3 className="text-lg font-bold text-(--text) mb-2">
-                    내 제출 기록
-                  </h3>
-                  {historyLoading ? <p role="status">제출 기록을 불러오는 중...</p> : historyError ? <p role="alert" className="text-(--reject)">{historyError}</p> : history.length === 0 ? (
-                    <div className="text-(--text-faint) text-center mt-10">
-                      제출 내역이 없습니다.
-                    </div>
+                <section aria-labelledby="history-title">
+                  <h2 id="history-title" className="section-title">내 제출</h2>
+                  {historyLoading ? (
+                    <p role="status" className="notice mt-4">제출 기록을 불러오는 중…</p>
+                  ) : historyError ? (
+                    <p role="alert" className="notice mt-4">{historyError}</p>
+                  ) : history.length === 0 ? (
+                    <p className="notice mt-4">아직 제출한 적이 없습니다. 코드를 쓰고 ‘제출’을 눌러 보세요.</p>
                   ) : (
-                    history.map((sub, idx) => (
-                      <div
-                        key={sub.id || idx}
-                        className="bg-(--paper) border border-(--rule) p-4 flex items-center justify-between border-l-2 border-l-(--rule)"
-                      >
-                        <div className="flex items-center gap-3">
-                          <StampTag
-                            label={statusLabel(sub.status)}
-                            tone={statusTone(sub.status)}
-                            size="sm"
-                          />
-                          <div className="text-xs text-(--text-dim) docket-label">
-                            {sub.language} ·{" "}
-                            {new Date(sub.created_at).toLocaleString()}
-                          </div>
-                        </div>
-                        <div className="text-xs font-mono bg-(--ink) px-2 py-1 text-(--text-faint)">
-                          {sub.id.substring(0, 8)}
-                        </div>
-                      </div>
-                    ))
+                    <table className="sheet-table mt-4">
+                      <thead>
+                        <tr>
+                          <th>결과</th>
+                          <th>언어</th>
+                          <th>제출한 때</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {history.map((sub) => (
+                          <tr key={sub.id}>
+                            <td className="py-2!"><Verdict status={sub.status} size="sm" /></td>
+                            <td>{LANGUAGE_LABELS[sub.language] ?? sub.language}</td>
+                            <td className="text-pencil">{formatDateTime(sub.created_at)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   )}
-                </div>
+                </section>
               )}
             </div>
           </Panel>
 
-          {/* Vertical Handle */}
-          <PanelResizeHandle className="workspace-divider w-2 bg-(--ink) hover:bg-(--seal)/20 transition-colors cursor-col-resize" />
+          <PanelResizeHandle className="workspace-divider" />
 
-          {/* Right Pane (Editor & Console) */}
-          <Panel defaultSize="55%" minSize="30%" className="workspace-code">
+          <Panel defaultSize="54%" minSize="30%" className="workspace-code">
             <PanelGroup orientation="vertical">
-              {/* Editor Top Pane */}
-              <Panel
-                defaultSize="65%"
-                minSize="25%"
-                className="bg-(--paper) flex flex-col rounded-lg border border-(--rule)"
-              >
-                <div className="flex items-center justify-between gap-3 px-3 py-2 border-b border-(--rule)">
-                  <span className="text-sm font-semibold">코드</span>
+              <Panel defaultSize="64%" minSize="25%" className="sheet-plain flex flex-col overflow-hidden">
+                <div className="flex-none border-b border-line px-3 py-2">
                   <LanguageSelect value={language} onChange={handleLanguageChange} />
                 </div>
-
-                <div className="flex-1 min-h-0">
-                  <Editor
-                    height="100%"
-                    language={MONACO_LANGUAGE[language] ?? "plaintext"}
-                    theme={theme === "dark" ? "vs-dark" : "light"}
-                    value={code}
-                    onChange={(val) => setCode(val || "")}
-                    options={{
-                      minimap: { enabled: false },
-                      fontSize: 14,
-                      fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                      padding: { top: 16 },
-                      scrollBeyondLastLine: false,
-                      smoothScrolling: true,
-                      cursorBlinking: "smooth",
-                      automaticLayout: true,
-                      tabSize: 4,
-                    }}
-                  />
+                <div className="min-h-0 flex-1">
+                  <CodeEditor language={language} value={code} onChange={setCode} />
                 </div>
               </Panel>
 
-              {/* Horizontal Handle */}
-              <PanelResizeHandle className="h-2 bg-(--ink) hover:bg-(--seal)/20 transition-colors cursor-row-resize" />
+              <PanelResizeHandle className="workspace-divider workspace-divider-row" />
 
-              {/* Console Bottom Pane */}
-              <Panel
-                defaultSize="35%"
-                minSize="20%"
-                className="bg-(--paper) flex flex-col rounded-lg border border-(--rule)"
-              >
-                <div className="flex bg-(--paper) border-b border-(--rule) px-2 pt-2 gap-1 shrink-0">
-                  {([
-                    { id: "testcases", label: "예제" },
-                    { id: "result", label: "실행 결과" },
-                    { id: "submission", label: "채점 결과" },
-                  ] as const).map((tab) => (
-                    <button
-                      key={tab.id}
-                      aria-pressed={activeConsoleTab === tab.id}
-                      onClick={() => setActiveConsoleTab(tab.id)}
-                      className={clsx(
-                        "px-4 py-1.5 text-xs font-medium rounded-t-sm transition-colors flex items-center gap-1.5",
-                        activeConsoleTab === tab.id
-                          ? "bg-(--rule) text-(--text)"
-                          : "text-(--text-faint) hover:text-(--text) hover:bg-(--rule)/50",
-                      )}
-                    >
-                      {tab.id === "result" && isTesting && (
-                        <div className="w-2 h-2 bg-(--pending) rounded-full animate-pulse" />
-                      )}
-                      {tab.label}
-                    </button>
-                  ))}
+              <Panel defaultSize="36%" minSize="20%" className="sheet-plain flex flex-col overflow-hidden">
+                <div role="group" aria-label="결과 보기" className="flex flex-none gap-1 border-b border-line px-3 py-1.5">
+                  <button className="choice choice-sm" aria-pressed={activeConsoleTab === "run"} onClick={() => setActiveConsoleTab("run")}>실행 결과</button>
+                  <button className="choice choice-sm" aria-pressed={activeConsoleTab === "submission"} onClick={() => setActiveConsoleTab("submission")}>채점 결과</button>
                 </div>
-                <div className="flex-1 p-4 font-mono text-sm overflow-auto scrollbar-thin scrollbar-thumb-(--rule-strong) bg-(--ink)">
-                  {activeConsoleTab === "testcases" && (
-                    <div className="text-(--text-dim) space-y-6">
-                      <div className="flex gap-2 flex-wrap" aria-label="예제 선택">
-                        {testCases.map((tc, idx) => <button key={tc.id} className={clsx("px-3 py-1 rounded-md border", caseIndex === idx ? "border-(--seal) text-(--text) bg-(--paper-raised)" : "border-(--rule)")} aria-pressed={caseIndex === idx} onClick={() => setCaseIndex(idx)}>예제 {idx + 1}</button>)}
-                      </div>
-                      {testCases.slice(caseIndex, caseIndex + 1).map((tc) => (
-                        <div key={tc.id}>
-                          <p className="mb-2 font-semibold text-(--text)">
-                            입력
-                          </p>
-                          <div className="bg-(--rule)/50 p-2 rounded border border-(--rule-strong)/50 text-(--text) mb-4 whitespace-pre-wrap">
-                            {tc.input_data}
-                          </div>
-                          <p className="mb-2 font-semibold text-(--text)">
-                            예상 출력
-                          </p>
-                          <div className="bg-(--rule)/50 p-2 rounded border border-(--rule-strong)/50 text-(--text) whitespace-pre-wrap">
-                            {tc.expected_output}
-                          </div>
-                        </div>
-                      ))}
-                      {testCases.length === 0 && (
-                        <div className="text-(--text-faint) italic">
-                          등록된 테스트 케이스가 없습니다.
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {activeConsoleTab === "result" && (
-                    <div role="status" className="text-(--text) whitespace-pre-wrap">
-                      {testResult || (
-                        <span className="text-(--text-faint) italic">
-                          실행을 누르면 공개된 예제로 코드를 테스트합니다. 제출하면 비공개 테스트를 포함해 채점합니다.
-                        </span>
-                      )}
-                    </div>
+                <div className="flex-1 overflow-auto p-5">
+                  {activeConsoleTab === "run" && (
+                    <TestRunResult running={isTesting} result={testResult} error={testError} />
                   )}
                   {activeConsoleTab === "submission" && (
-                    <div role="status" className="space-y-4 font-sans">
-                      {submitError ? <p role="alert" className="text-(--reject)">{submitError}</p> : isSubmitting ? <p>코드를 제출하는 중...</p> : subId ? <><StampTag label={statusLabel(status)} tone={statusTone(status)} /><p className="text-sm text-(--text-dim)">{status === "Pending" || status === "Running" ? "채점 중입니다. 다른 영역에서 풀이를 계속 살펴볼 수 있습니다." : "채점이 완료되었습니다. 내 제출 기록에서 이전 결과를 확인하세요."}</p></> : <p>코드를 작성한 뒤 제출을 눌러 채점 결과를 확인하세요.</p>}
-                    </div>
+                    <SubmissionResult
+                      submitting={isSubmitting}
+                      submitted={subId !== null}
+                      status={status}
+                      error={submitError}
+                    />
                   )}
                 </div>
               </Panel>

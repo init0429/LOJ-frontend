@@ -5,12 +5,18 @@ import { useTheme } from "@/hooks/useTheme";
 import { code } from "@/lib/fonts";
 import { MONACO_LANGUAGE } from "@/lib/languages";
 
-// 답안지 색에 맞춘 편집기. 줄 번호는 인쇄 분홍, 글자는 사인펜.
+// 답안지 색에 맞춘 편집기. 줄 번호와 예약어는 인쇄 분홍, 글자는 사인펜,
+// 문자열과 숫자는 파란 볼펜, 주석은 연필.
 const defineThemes: BeforeMount = (monaco) => {
   monaco.editor.defineTheme("loj-light", {
     base: "vs",
     inherit: true,
-    rules: [],
+    rules: [
+      { token: "comment", foreground: "6b5f64", fontStyle: "italic" },
+      { token: "keyword", foreground: "c02f55", fontStyle: "bold" },
+      { token: "string", foreground: "2b4a9b" },
+      { token: "number", foreground: "2b4a9b" },
+    ],
     colors: {
       "editor.background": "#ffffff",
       "editor.foreground": "#1f161a",
@@ -33,7 +39,12 @@ const defineThemes: BeforeMount = (monaco) => {
   monaco.editor.defineTheme("loj-dark", {
     base: "vs-dark",
     inherit: true,
-    rules: [],
+    rules: [
+      { token: "comment", foreground: "b9aab0", fontStyle: "italic" },
+      { token: "keyword", foreground: "f393ab", fontStyle: "bold" },
+      { token: "string", foreground: "a9bcf7" },
+      { token: "number", foreground: "a9bcf7" },
+    ],
     colors: {
       "editor.background": "#1f171b",
       "editor.foreground": "#f7eef1",

@@ -57,7 +57,7 @@
     font-size: 16px;
     line-height: 1.7;
     word-break: keep-all;
-    overflow-wrap: anywhere;
+    overflow-wrap: break-word;
   }
 
   button:not(:disabled),
@@ -455,10 +455,47 @@
   .prose-problem hr {
     border-color: var(--line);
   }
+  .prose-problem .katex {
+    word-break: normal;
+    overflow-wrap: normal;
+  }
   .prose-problem .katex-display {
     overflow-x: auto;
     overflow-y: hidden;
   }
+}
+
+/* 문제 풀이 작업 화면 */
+.workspace-divider {
+  flex: none;
+  width: 8px;
+  border-radius: 4px;
+  cursor: col-resize;
+}
+.workspace-divider-row {
+  width: auto;
+  height: 8px;
+  cursor: row-resize;
+}
+.workspace-divider:hover,
+.workspace-divider[data-separator="active"] {
+  background: var(--line);
+}
+.workspace-mobile-switch {
+  display: none;
+}
+@media (max-width: 767px) {
+  .workspace-mobile-switch {
+    display: flex;
+    gap: 4px;
+    padding: 6px 10px 0;
+  }
+  .problem-workspace .workspace-panels { display: block !important; }
+  .problem-workspace .workspace-divider { display: none; }
+  .problem-workspace .workspace-description,
+  .problem-workspace .workspace-code { width: 100%; height: 100%; }
+  .problem-workspace[data-mobile-pane="description"] .workspace-code,
+  .problem-workspace[data-mobile-pane="code"] .workspace-description { display: none; }
 }
 
 /* 채점 표시가 그려지는 한 번의 움직임. 제출·실행처럼 사용자 행동의 답으로만 쓴다. */
@@ -553,17 +590,6 @@
 .landing-title { font-size: clamp(36px, 4.8vw, 64px); font-weight: 900; line-height: 1.3; }
 .code-record { max-width: 560px; margin-top: 32px; border: 1.5px solid var(--print); border-radius: 14px; overflow: hidden; background: var(--paper); }
 .code-record pre { padding: 24px; overflow-x: auto; font: 14px/1.9 var(--font-mono); }
-.workspace-mobile-switch { display: none; }
 @media (max-width: 767px) {
-  .workspace-mobile-switch { display: flex; padding: 8px; gap: 8px; }
-  .workspace-mobile-switch button { flex: 1; padding: 8px; border-radius: 6px; color: var(--text-dim); }
-  .workspace-mobile-switch button[aria-pressed="true"] { background: var(--paper-raised); color: var(--text); }
-  .problem-workspace .workspace-panels { display: block !important; }
-  .problem-workspace .workspace-divider { display: none; }
-  .problem-workspace .workspace-description,
-  .problem-workspace .workspace-code { width: 100%; height: 100%; }
-  .problem-workspace[data-mobile-pane="description"] .workspace-code,
-  .problem-workspace[data-mobile-pane="code"] .workspace-description { display: none; }
-  .workspace-header { justify-content: center; }
   .landing { grid-template-columns: minmax(0, 1fr); padding: 32px 20px; }
 }
