@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { ChevronLeft, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/fetch-all";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import AdminGate from "@/components/AdminGate";
 import CodeEditor from "@/components/CodeEditor";
@@ -67,13 +68,16 @@ export default function ContestResultsPage() {
             .eq("contest_id", contestId)
             .order("order", { ascending: true })
             .returns<{ order: number; problems: ContestProblem | null }[]>(),
-          supabase
-            .from("submissions")
-            .select(
-              "id, user_id, problem_id, status, code, language, created_at",
-            )
-            .eq("contest_id", contestId)
-            .order("created_at", { ascending: false }),
+          // 대회 하나의 제출도 1000건을 넘길 수 있어 페이지를 나눠 전부 읽는다.
+          fetchAllRows<SubmissionRow>((from, to) =>
+            supabase
+              .from("submissions")
+              .select("id, user_id, problem_id, status, code, language, created_at")
+              .eq("contest_id", contestId)
+              .order("created_at", { ascending: false })
+              .order("id")
+              .range(from, to),
+          ),
         ]);
 
       setContest(contestData);

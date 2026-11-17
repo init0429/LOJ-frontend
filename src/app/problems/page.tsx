@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
+import { fetchAllRows } from "@/lib/fetch-all";
 import Difficulty from "@/components/Difficulty";
 import ProblemNumber from "@/components/ProblemNumber";
 
@@ -37,8 +38,11 @@ export default function ProblemsPage() {
           .from("problems")
           .select("id, title, time_limit_ms, memory_limit_mb, difficulty")
           .order("id", { ascending: true }),
-        // 정답률은 전체 유저 기준 통계라 user_id로 안 거름
-        supabase.from("submissions").select("problem_id, status"),
+        // 정답률은 전체 유저 기준 통계라 user_id로 안 거름.
+        // 제출은 1000건을 금방 넘기므로 페이지를 나눠 전부 읽는다.
+        fetchAllRows<{ problem_id: number; status: string }>((from, to) =>
+          supabase.from("submissions").select("problem_id, status").order("id").range(from, to),
+        ),
       ]);
 
       if (problemsRes.error) {
@@ -48,7 +52,9 @@ export default function ProblemsPage() {
         setProblems(problemsRes.data || []);
       }
 
-      if (submissionsRes.data) {
+      if (submissionsRes.error) {
+        console.error("정답률 로딩 에러:", submissionsRes.error);
+      } else {
         const newStats: Record<number, { total: number; accepted: number }> =
           {};
         submissionsRes.data.forEach((sub) => {
@@ -65,11 +71,15 @@ export default function ProblemsPage() {
 
       // 맞힌 문제 표시는 로그인한 본인 제출만 기준으로 삼는다.
       if (session) {
-        const { data: mySubs } = await supabase
-          .from("submissions")
-          .select("problem_id")
-          .eq("user_id", session.user.id)
-          .eq("status", "Accepted");
+        const { data: mySubs } = await fetchAllRows<{ problem_id: number }>((from, to) =>
+          supabase
+            .from("submissions")
+            .select("problem_id")
+            .eq("user_id", session.user.id)
+            .eq("status", "Accepted")
+            .order("id")
+            .range(from, to),
+        );
 
         setSolvedIds(new Set((mySubs || []).map((s) => s.problem_id)));
       }
