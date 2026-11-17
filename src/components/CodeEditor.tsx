@@ -2,7 +2,7 @@
 
 import Editor, { type OnMount } from "@monaco-editor/react";
 import { useTheme } from "@/hooks/useTheme";
-import { code } from "@/lib/fonts";
+import { codeFontFamily } from "@/lib/fonts";
 import { MONACO_LANGUAGE } from "@/lib/languages";
 
 // 웹폰트가 늦게 도착하면 글자 폭을 다시 재야 커서 위치가 어긋나지 않는다.
@@ -39,7 +39,7 @@ export default function CodeEditor({
         readOnly,
         minimap: { enabled: false },
         fontSize,
-        fontFamily: `${code.style.fontFamily}, ui-monospace, monospace`,
+        fontFamily: codeFontFamily,
         lineHeight: 1.7,
         padding: { top: 16, bottom: 16 },
         scrollBeyondLastLine: false,

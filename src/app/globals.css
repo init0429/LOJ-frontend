@@ -42,7 +42,7 @@
   --color-ok: var(--ok);
   --color-bad: var(--bad);
   --font-sans: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
-  --font-mono: var(--font-code), ui-monospace, "SF Mono", Menlo, monospace;
+  --font-mono: var(--font-code-latin), var(--font-code-hangul), ui-monospace, "SF Mono", Menlo, monospace;
 }
 
 @layer base {

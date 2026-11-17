@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
-import { code } from "@/lib/fonts";
+import { codeHangul, codeLatin } from "@/lib/fonts";
 
 export const metadata: Metadata = {
   title: "LOJ",
@@ -20,7 +20,7 @@ export default function RootLayout({
     <html
       lang="ko"
       suppressHydrationWarning
-      className={`${code.variable} h-full antialiased`}
+      className={`${codeLatin.variable} ${codeHangul.variable} h-full antialiased`}
     >
       <head>
         <script dangerouslySetInnerHTML={{ __html: `(function(){var t;try{t=localStorage.getItem('loj-theme')}catch(e){}if(t!=='light'&&t!=='dark')t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t})()` }} />
