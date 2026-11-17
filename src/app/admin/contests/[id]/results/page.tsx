@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { ChevronLeft, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/fetch-all";
+import { rankParticipants } from "@/lib/contest-ranking";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import AdminGate from "@/components/AdminGate";
 import CodeEditor from "@/components/CodeEditor";
@@ -35,6 +36,13 @@ interface Participant {
 }
 
 const letter = (index: number) => String.fromCharCode(65 + (index % 26));
+
+/** 대회 시작부터 걸린 시간을 "1시간 5분", "12분"처럼 */
+const formatElapsed = (ms: number) => {
+  const minutes = Math.max(0, Math.floor(ms / 60000));
+  const hours = Math.floor(minutes / 60);
+  return hours ? `${hours}시간 ${minutes % 60}분` : `${minutes}분`;
+};
 
 export default function ContestResultsPage() {
   const params = useParams();
@@ -92,8 +100,10 @@ export default function ContestResultsPage() {
           .from("profiles")
           .select("id, username")
           .in("id", userIds);
+        // 프로필이 없는 사람도 제출했으면 순위에 넣는다. 이름 대신 계정 번호 앞자리를 보인다.
+        const names = new Map((profs || []).map((p) => [p.id, p.username as string]));
         setParticipants(
-          (profs || []).map((p) => ({ user_id: p.id, username: p.username })),
+          userIds.map((id) => ({ user_id: id, username: names.get(id) || `이름 없음 (${id.slice(0, 8)})` })),
         );
       }
 
@@ -127,6 +137,12 @@ export default function ContestResultsPage() {
     return accepted ? "Accepted" : rows[0].status; // rows[0] = 가장 최근 시도
   };
 
+  const ranking = useMemo(
+    () => rankParticipants(submissions, problems.map((p) => p.id)),
+    [submissions, problems],
+  );
+  const contestStart = contest ? new Date(contest.start_time).getTime() : 0;
+
   const solvedCount = (userId: string) =>
     problems.filter((p) => bestStatus(userId, p.id) === "Accepted").length;
 
@@ -157,7 +173,8 @@ export default function ContestResultsPage() {
 
       <h1 className="page-title mt-6">{contest?.title ?? "대회"} 결과</h1>
       <p className="page-lead">
-        제출한 사람 {participants.length}명, 문제 {problems.length}개. 이름을 누르면 문제별 결과와 코드를 볼 수 있습니다.
+        제출한 사람 {participants.length}명, 문제 {problems.length}개. 맞힌 문제가 같으면 마지막 문제를 먼저 맞힌 사람이 앞입니다.
+        이름을 누르면 문제별 결과와 코드를 볼 수 있습니다.
       </p>
 
       {!selectedParticipant ? (
@@ -170,27 +187,28 @@ export default function ContestResultsPage() {
                 <tr>
                   <th className="w-20">순위</th>
                   <th>이름</th>
+                  <th className="num hidden w-36 sm:table-cell">마지막 정답</th>
                   <th className="num w-36 pr-9!">맞힌 문제</th>
                 </tr>
               </thead>
               <tbody>
-                {participants
-                  .slice()
-                  .sort((a, b) => solvedCount(b.user_id) - solvedCount(a.user_id))
-                  .map((participant, i) => (
-                    <tr key={participant.user_id} className="row-link relative">
-                      <td className="font-extrabold tabular-nums">{i + 1}</td>
-                      <td>
-                        <button className="font-bold after:absolute after:inset-0" onClick={() => setSelectedUser(participant.user_id)}>
-                          {participant.username}
-                        </button>
-                      </td>
-                      <td className="num py-1! pr-9!">
-                        <span className="hand text-[28px]">{solvedCount(participant.user_id)}</span>
-                        <span className="text-pencil"> / {problems.length}</span>
-                      </td>
-                    </tr>
-                  ))}
+                {ranking.map((row) => (
+                  <tr key={row.user_id} className="row-link relative">
+                    <td className="font-extrabold tabular-nums">{row.rank}</td>
+                    <td>
+                      <button className="font-bold after:absolute after:inset-0" onClick={() => setSelectedUser(row.user_id)}>
+                        {participants.find((p) => p.user_id === row.user_id)?.username ?? row.user_id.slice(0, 8)}
+                      </button>
+                    </td>
+                    <td className="num hidden text-pencil sm:table-cell">
+                      {row.finishedAt === null ? "–" : `시작 후 ${formatElapsed(row.finishedAt - contestStart)}`}
+                    </td>
+                    <td className="num py-1! pr-9!">
+                      <span className="hand text-[28px]">{row.solved}</span>
+                      <span className="text-pencil"> / {problems.length}</span>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           )}
