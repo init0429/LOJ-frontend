@@ -10,9 +10,3 @@ const LABELS: Record<number, string> = {
 
 export const difficultyLabel = (difficulty: number | null | undefined) =>
   (difficulty && LABELS[difficulty]) || "미정";
-
-// 아직 옮기지 않은 화면이 쓰는 이전 함수. 화면 이전이 끝나면 지운다.
-export const getDifficultyMeta = (difficulty: number | null | undefined) => ({
-  label: difficultyLabel(difficulty),
-  color: "var(--marker)",
-});
