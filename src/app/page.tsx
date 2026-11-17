@@ -8,6 +8,10 @@ import { supabase } from "@/lib/supabase";
 import { errorMessage } from "@/lib/errors";
 import { LANGUAGE_LABELS } from "@/lib/languages";
 
+// 로그인할 수 있는 학교 이메일 도메인. Google 로그인 화면에서 이 도메인 계정을 먼저 보여 준다.
+// 실제로 막는 것은 백엔드의 ALLOWED_EMAIL_DOMAINS이므로 두 값을 같게 맞출 것.
+const SCHOOL_DOMAIN = process.env.NEXT_PUBLIC_ALLOWED_EMAIL_DOMAIN?.trim().replace(/^@/, "") || null;
+
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -28,7 +32,7 @@ export default function Home() {
         provider: "google",
         options: {
           redirectTo: window.location.origin,
-          queryParams: { hd: "bssm.hs.kr" },
+          ...(SCHOOL_DOMAIN && { queryParams: { hd: SCHOOL_DOMAIN } }),
         },
       });
       if (error) throw error;
@@ -51,7 +55,7 @@ export default function Home() {
           학교 Google 계정으로 로그인
         </button>
         {error && <p role="alert" className="notice-error mt-3 text-sm">{error}</p>}
-        <p className="notice mt-3 text-sm">@bssm.hs.kr 계정만 쓸 수 있습니다.</p>
+        {SCHOOL_DOMAIN && <p className="notice mt-3 text-sm">@{SCHOOL_DOMAIN} 계정만 쓸 수 있습니다.</p>}
       </div>
 
       <p className="mt-6 text-sm">
