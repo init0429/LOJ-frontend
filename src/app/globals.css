@@ -498,6 +498,33 @@
   .problem-workspace[data-mobile-pane="code"] .workspace-description { display: none; }
 }
 
+/* 대회 문제 탭: 순서 글자와 제목. 맞힌 문제는 글자에 동그라미가 그려진다. */
+.contest-tab {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 6px;
+  max-width: 16em;
+  min-height: 38px;
+  padding: 0 14px 0 6px;
+  border-radius: 999px;
+  color: var(--pencil);
+  font-size: 14px;
+  font-weight: 600;
+}
+.contest-tab:hover:not(:disabled) {
+  background: var(--tint);
+  color: var(--marker);
+}
+.contest-tab[aria-pressed="true"] {
+  background: var(--tint);
+  color: var(--marker);
+  font-weight: 800;
+}
+.contest-tab:disabled {
+  opacity: 0.45;
+}
+
 /* 채점 표시가 그려지는 한 번의 움직임. 제출·실행처럼 사용자 행동의 답으로만 쓴다. */
 .grade-stroke[data-draw="true"] {
   stroke-dasharray: 1;

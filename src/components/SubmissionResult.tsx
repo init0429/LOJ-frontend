@@ -23,7 +23,7 @@ export default function SubmissionResult({
   if (!submitted) {
     return (
       <p className="notice max-w-[40em]">
-        ‘제출’을 누르면 숨겨진 테스트까지 채점합니다. 결과는 ‘내 제출’에 남습니다.
+        ‘제출’을 누르면 숨겨진 테스트까지 채점합니다.
       </p>
     );
   }

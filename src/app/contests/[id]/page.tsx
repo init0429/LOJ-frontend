@@ -1,29 +1,24 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import Editor from "@monaco-editor/react";
-import ThemeToggle from "@/components/ThemeToggle";
-import { useTheme } from "@/hooks/useTheme";
 import { useSubmissionState } from "@/hooks/useSubmissionState";
-import { Scale } from "lucide-react";
-import clsx from "clsx";
-import Link from "next/link";
-import ProblemContent from "@/components/ProblemContent";
-import StampTag, { StampTone, statusLabel } from "@/components/StampTag";
-import { MONACO_LANGUAGE, STARTER_CODE } from "@/lib/languages";
+import CodeEditor from "@/components/CodeEditor";
+import GradeMark from "@/components/GradeMark";
 import LanguageSelect from "@/components/LanguageSelect";
-import type { Contest, Problem, TestCase } from "@/lib/types";
-import { submitCode, testCode } from "@/lib/judge-api";
+import Logo from "@/components/Logo";
+import ProblemSheet from "@/components/ProblemSheet";
+import SubmissionResult from "@/components/SubmissionResult";
+import TestRunResult from "@/components/TestRunResult";
+import ThemeToggle from "@/components/ThemeToggle";
 import { errorMessage } from "@/lib/errors";
-
-const statusTone = (status: string): StampTone => {
-  if (status === "Accepted") return "accept";
-  if (status === "Pending" || status === "Running") return "pending";
-  if (!status) return "neutral";
-  return "reject";
-};
+import { formatCountdown, formatDateTime } from "@/lib/format";
+import { submitCode, testCode } from "@/lib/judge-api";
+import { STARTER_CODE } from "@/lib/languages";
+import type { Contest, Problem, TestCase, TestResult } from "@/lib/types";
+import { isJudging } from "@/lib/verdict";
 
 type Phase = "upcoming" | "ongoing" | "ended";
 
@@ -35,23 +30,17 @@ function getPhase(start: string, end: string, now: number): Phase {
   return "ongoing";
 }
 
-function formatCountdown(ms: number) {
-  const clamped = Math.max(0, ms);
-  const totalSec = Math.floor(clamped / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
+// 대회 문제는 출제 순서대로 A, B, C…로 부른다.
+const letter = (index: number) => String.fromCharCode(65 + (index % 26));
 
 export default function ContestWorkspace() {
-  const { theme } = useTheme();
   const params = useParams();
   const contestId = params.id as string;
 
   const [contest, setContest] = useState<Contest | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [problems, setProblems] = useState<Problem[]>([]);
+  const [solvedIds, setSolvedIds] = useState<Set<number>>(new Set());
   const [activeIdx, setActiveIdx] = useState(0);
   const [now, setNow] = useState(0);
 
@@ -65,8 +54,11 @@ export default function ContestWorkspace() {
   const [subId, setSubId] = useState<string | null>(null);
   const status = useSubmissionState(subId);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
-  const [consoleOutput, setConsoleOutput] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<TestResult | null>(null);
+  const [testError, setTestError] = useState<string | null>(null);
+  const [activeConsoleTab, setActiveConsoleTab] = useState<"run" | "submission">("run");
 
   const [loadedProblemId, setLoadedProblemId] = useState<number | null>(null);
   const [dirty, setDirty] = useState(false);
@@ -74,6 +66,9 @@ export default function ContestWorkspace() {
   const currentProblem = problems[activeIdx];
   const currentProblemId = currentProblem?.id;
   const draftReady = currentProblemId !== undefined && loadedProblemId === currentProblemId;
+
+  const judging = subId !== null && isJudging(status);
+  const justSolved = subId !== null && status === "Accepted";
 
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -91,7 +86,7 @@ export default function ContestWorkspace() {
         .single();
       if (cancelled) return;
       if (error || !contestData) {
-        setLoadError("콘테스트를 불러올 수 없습니다.");
+        setLoadError("대회를 불러오지 못했습니다. 주소가 맞는지 확인해 주세요.");
         return;
       }
       setNow(Date.now());
@@ -106,10 +101,21 @@ export default function ContestWorkspace() {
 
       if (cancelled) return;
       if (problemsError) {
-        setLoadError("콘테스트 문제를 불러올 수 없습니다.");
+        setLoadError("대회 문제를 불러오지 못했습니다. 새로고침해 주세요.");
         return;
       }
       setProblems((cp || []).flatMap((row) => row.problems ? [row.problems] : []));
+
+      // 이 대회에서 이미 맞힌 문제는 탭 글자에 동그라미를 그려 둔다.
+      const { data: { session } } = await supabase.auth.getSession();
+      if (cancelled || !session) return;
+      const { data: accepted } = await supabase
+        .from("submissions")
+        .select("problem_id")
+        .eq("contest_id", contestId)
+        .eq("user_id", session.user.id)
+        .eq("status", "Accepted");
+      if (!cancelled && accepted) setSolvedIds(new Set(accepted.map((row) => row.problem_id)));
     })();
     return () => { cancelled = true; };
   }, [contestId]);
@@ -133,7 +139,7 @@ export default function ContestWorkspace() {
       } = await supabase.auth.getSession();
       if (cancelled) return;
       if (!session) {
-        setLoadError("로그인 후 콘테스트에 참가하세요.");
+        setLoadError("대회에 참가하려면 먼저 로그인해 주세요.");
         return;
       }
 
@@ -147,7 +153,7 @@ export default function ContestWorkspace() {
 
       if (cancelled) return;
       if (error) {
-        setLoadError("저장된 코드를 불러올 수 없습니다. 새로고침 후 다시 시도하세요.");
+        setLoadError("저장해 둔 코드를 불러오지 못했습니다. 새로고침해 주세요.");
         return;
       }
       if (draft) {
@@ -161,7 +167,9 @@ export default function ContestWorkspace() {
       setDirty(false);
       setSaveState("idle");
       setSubId(null);
-      setConsoleOutput(null);
+      setSubmitError(null);
+      setTestResult(null);
+      setTestError(null);
     })();
     return () => { cancelled = true; };
   }, [currentProblemId, contestId]);
@@ -197,6 +205,11 @@ export default function ContestWorkspace() {
     };
   }, [code, language, contestId, currentProblemId, draftReady, dirty, saveAttempt]);
 
+  // 방금 맞힌 문제는 다른 문제로 넘어간 뒤에도 탭에 동그라미가 남아야 한다.
+  if (justSolved && currentProblemId !== undefined && !solvedIds.has(currentProblemId)) {
+    setSolvedIds(new Set(solvedIds).add(currentProblemId));
+  }
+
   const updateCode = (value: string) => {
     if (!draftReady || value === code) return;
     setCode(value);
@@ -223,9 +236,7 @@ export default function ContestWorkspace() {
     history.pushState(null, "", location.href);
     const onPopState = () => {
       history.pushState(null, "", location.href);
-      alert(
-        "콘테스트 진행 중에는 이 화면을 벗어날 수 없습니다. 코드는 자동으로 저장되고 있습니다.",
-      );
+      alert("대회가 진행 중일 때는 이 화면을 벗어날 수 없습니다. 쓰던 코드는 자동으로 저장됩니다.");
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
@@ -234,17 +245,13 @@ export default function ContestWorkspace() {
   const handleTest = async () => {
     if (!currentProblem || !draftReady || phase !== "ongoing") return;
     setIsTesting(true);
-    setConsoleOutput("코드 실행 중...");
+    setTestError(null);
+    setActiveConsoleTab("run");
     try {
-      const result = await testCode({ problem_id: currentProblem.id, language, code, contest_id: Number(contestId) });
-      let output = `최종 결과: ${statusLabel(result.status)}\n\n`;
-      (result.test_cases || []).forEach((tc, i) => {
-        output += `[테스트케이스 ${i + 1}] - ${statusLabel(tc.status)}\n`;
-        output += `입력값: ${tc.input.trim()}\n기댓값: ${tc.expected.trim()}\n실제값: ${tc.actual.trim()}\n------------------------\n`;
-      });
-      setConsoleOutput(output);
+      setTestResult(await testCode({ problem_id: currentProblem.id, language, code, contest_id: Number(contestId) }));
     } catch (err) {
-      setConsoleOutput(`실행 오류: ${errorMessage(err, "알 수 없는 오류")}`);
+      setTestResult(null);
+      setTestError(errorMessage(err, "예제를 실행하지 못했습니다. 다시 눌러 주세요."));
     } finally {
       setIsTesting(false);
     }
@@ -253,252 +260,174 @@ export default function ContestWorkspace() {
   const handleSubmit = async () => {
     if (!currentProblem || !draftReady || phase !== "ongoing") return;
     setIsSubmitting(true);
+    setSubmitError(null);
     setSubId(null);
+    setActiveConsoleTab("submission");
     try {
       setSubId(await submitCode({
-          problem_id: currentProblem.id,
-          language,
-          code,
-          contest_id: Number(contestId),
+        problem_id: currentProblem.id,
+        language,
+        code,
+        contest_id: Number(contestId),
       }));
     } catch (err) {
-      alert(errorMessage(err, "오류가 발생했습니다."));
+      setSubmitError(errorMessage(err, "제출하지 못했습니다. 다시 눌러 주세요."));
     } finally {
       setIsSubmitting(false);
     }
   };
 
   if (loadError) {
-    return <div role="alert" className="p-8 text-(--reject)">{loadError} <Link href="/contests">목록으로</Link></div>;
+    return (
+      <div className="page page-narrow">
+        <p role="alert" className="notice-error">{loadError}</p>
+        <Link href="/contests" className="btn btn-line mt-6">대회 목록으로 돌아가기</Link>
+      </div>
+    );
   }
 
   if (!contest) {
-    return (
-      <div className="h-screen bg-(--ink) flex items-center justify-center text-(--seal)">
-        Loading...
-      </div>
-    );
+    return <p role="status" className="notice page">대회를 불러오는 중…</p>;
   }
 
-  // 시작 전
   if (phase === "upcoming") {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-(--ink) text-center px-6">
-        <Scale className="text-(--seal) mb-6" size={40} />
-        <div className="docket-label text-xs text-(--text-faint) mb-2">
-          개정 전
-        </div>
-        <h1 className="text-2xl font-semibold text-(--text) mb-6">
-          {contest.title}
-        </h1>
-        <div className="docket-label text-4xl text-(--seal) mb-6 tabular-nums">
+      <div className="page page-narrow my-auto">
+        <h1 className="page-title">{contest.title}</h1>
+        <p className="page-lead">{formatDateTime(contest.start_time)}에 시작합니다. 시작하면 이 화면에 문제가 열립니다.</p>
+        <p className="mt-10 text-sm font-bold text-print-ink">시작까지</p>
+        <p role="timer" className="text-[clamp(56px,12vw,112px)] font-black leading-none tracking-[-0.03em] tabular-nums">
           {formatCountdown(new Date(contest.start_time).getTime() - now)}
-        </div>
-        <p className="text-(--text-dim) mb-10">
-          시작 시각: {new Date(contest.start_time).toLocaleString()}
         </p>
-        <Link
-          href="/contests"
-          className="docket-label text-[11px] border border-(--rule) px-4 py-2 text-(--text-dim) hover:text-(--text) hover:border-(--rule-strong) transition-colors"
-        >
-          목록으로
-        </Link>
+        <Link href="/contests" className="btn btn-line mt-10">대회 목록으로 돌아가기</Link>
       </div>
     );
   }
 
-  // 종결
   if (phase === "ended") {
     return (
-      <div className="h-screen flex flex-col items-center justify-center bg-(--ink) text-center px-6">
-        <StampTag label="종결" tone="neutral" size="lg" />
-        <h1 className="text-2xl font-semibold text-(--text) mt-6 mb-2">
-          {contest.title}
-        </h1>
-        <p className="text-(--text-dim) mb-10">심리가 종료되었습니다.</p>
-        <Link
-          href="/contests"
-          className="docket-label text-[11px] border border-(--rule) px-4 py-2 text-(--text-dim) hover:text-(--text) hover:border-(--rule-strong) transition-colors"
-        >
-          목록으로
-        </Link>
+      <div className="page page-narrow my-auto">
+        <h1 className="page-title">{contest.title}</h1>
+        <p className="page-lead">{formatDateTime(contest.end_time)}에 끝난 대회입니다. 지금은 제출할 수 없습니다.</p>
+        <Link href="/contests" className="btn btn-line mt-8">대회 목록으로 돌아가기</Link>
       </div>
     );
   }
 
+  const busy = isTesting || isSubmitting;
+
   return (
-    <div className="h-screen flex flex-col bg-(--ink)">
-      <div className="h-14 shrink-0 bg-(--paper) border-b border-(--rule) flex items-center justify-between px-6">
-        <div className="flex items-center gap-3">
-          <Scale className="text-(--seal)" size={18} />
-          <span className="docket-label text-sm text-(--text)">
-            {contest.title}
-          </span>
+    <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
+      <header className="flex flex-none flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b-[1.5px] border-print bg-paper px-4 py-2">
+        <div className="flex min-w-0 items-center gap-4">
+          <Logo className="text-[22px]" />
+          <p className="truncate font-extrabold">{contest.title}</p>
         </div>
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
+          <span role="status" className="text-sm text-pencil">
+            {saveState === "error" ? (
+              <button className="text-link" onClick={() => { setSaveState("saving"); setSaveAttempt((value) => value + 1); }}>
+                저장하지 못했습니다. 다시 저장
+              </button>
+            ) : saveState === "saving" ? "저장하는 중" : saveState === "saved" ? "저장됨" : ""}
+          </span>
+          <p className="flex items-baseline gap-2">
+            <span className="text-sm font-bold text-print-ink">남은 시간</span>
+            <span role="timer" className="text-xl font-black tabular-nums">
+              {formatCountdown(new Date(contest.end_time).getTime() - now)}
+            </span>
+          </p>
           <ThemeToggle />
-          <span className="docket-label text-[10px] text-(--text-faint) w-16 text-right">
-            {saveState === "error" ? <button onClick={() => { setSaveState("saving"); setSaveAttempt((value) => value + 1); }}>저장 실패 · 재시도</button> : saveState === "saving"
-              ? "저장 중"
-              : saveState === "saved"
-                ? "저장됨"
-                : ""}
-          </span>
-          <div className="docket-label text-lg text-(--reject) tabular-nums">
-            {formatCountdown(new Date(contest.end_time).getTime() - now)}
-          </div>
         </div>
-      </div>
+      </header>
 
       {problems.length > 1 && (
-        <div className="flex bg-(--paper) border-b border-(--rule) px-4 gap-1 shrink-0 overflow-x-auto">
+        <nav aria-label="대회 문제" className="flex flex-none gap-1 overflow-x-auto border-b border-line bg-paper px-3 py-1.5">
           {problems.map((p, i) => (
             <button
               key={p.id}
-              disabled={dirty || isTesting || isSubmitting}
+              disabled={dirty || busy}
+              aria-pressed={i === activeIdx}
+              title={dirty ? "코드가 저장된 뒤에 다른 문제로 넘어갈 수 있습니다." : undefined}
               onClick={() => setActiveIdx(i)}
-              className={clsx(
-                "docket-label text-[11px] px-4 py-2 border-b-2 transition-colors whitespace-nowrap",
-                i === activeIdx
-                  ? "border-(--seal) text-(--seal)"
-                  : "border-transparent text-(--text-dim) hover:text-(--text)",
-              )}
+              className="contest-tab"
             >
-              № {String(p.id).padStart(3, "0")} · {p.title}
+              <span className="relative inline-flex h-7 w-7 flex-none items-center justify-center font-black">
+                {letter(i)}
+                {solvedIds.has(p.id) && <GradeMark kind="correct" className="absolute -inset-0.5" />}
+              </span>
+              <span className="truncate">{p.title}</span>
+              {solvedIds.has(p.id) && <span className="sr-only">(맞힌 문제)</span>}
             </button>
           ))}
-        </div>
+        </nav>
       )}
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* 문제 설명 */}
-        <div className="w-1/2 overflow-y-auto p-8 border-r border-(--rule)">
-          {currentProblem && (
-            <>
-              <h1 className="text-xl font-semibold text-(--text) mb-4">
-                {currentProblem.title}
-              </h1>
-              <ProblemContent content={currentProblem.description} />
-              {currentProblem.input_description && (
-                <section className="mt-6">
-                  <h3 className="text-base font-semibold text-(--text) mb-3">
-                    입력
-                  </h3>
-                  <div className="bg-(--ink)/50 p-4 border border-(--rule)/50">
-                    <ProblemContent
-                      content={currentProblem.input_description}
-                    />
-                  </div>
-                </section>
-              )}
-              {currentProblem.output_description && (
-                <section className="mt-6">
-                  <h3 className="text-base font-semibold text-(--text) mb-3">
-                    출력
-                  </h3>
-                  <div className="bg-(--ink)/50 p-4 border border-(--rule)/50">
-                    <ProblemContent
-                      content={currentProblem.output_description}
-                    />
-                  </div>
-                </section>
-              )}
-              {testCases.length > 0 && (
-                <section className="mt-6 space-y-4">
-                  <h3 className="text-base font-semibold text-(--text) mb-3">
-                    예제
-                  </h3>
-                  {testCases.map((tc, idx) => (
-                    <div key={tc.id || idx} className="text-sm">
-                      <p className="mb-1 font-semibold text-(--text-dim)">
-                        입력 {idx + 1}
-                      </p>
-                      <div className="bg-(--rule)/40 p-2 border border-(--rule) text-(--text) mb-2 whitespace-pre-wrap font-mono">
-                        {tc.input_data}
-                      </div>
-                      <p className="mb-1 font-semibold text-(--text-dim)">
-                        출력 {idx + 1}
-                      </p>
-                      <div className="bg-(--rule)/40 p-2 border border-(--rule) text-(--text) whitespace-pre-wrap font-mono">
-                        {tc.expected_output}
-                      </div>
-                    </div>
-                  ))}
-                </section>
-              )}
-            </>
-          )}
-        </div>
-
-        {/* 에디터 + 콘솔 */}
-        <div className="w-1/2 flex flex-col">
-          <div className="flex items-center justify-between px-4 py-2 bg-(--paper) border-b border-(--rule) shrink-0">
-            <LanguageSelect
-              value={language}
-              disabled={!draftReady}
-              onChange={(next) => {
-                if (Object.values(STARTER_CODE).includes(code)) setCode(STARTER_CODE[next]);
-                setLanguage(next);
-                setDirty(true);
-                setSaveState("saving");
-              }}
-            />
-            <div className="flex gap-2">
-              <button
-                onClick={handleTest}
-                disabled={isTesting || !draftReady}
-                className="docket-label text-[11px] px-4 py-1.5 bg-(--rule) hover:bg-(--rule-strong) text-(--text) transition-colors disabled:opacity-50"
-              >
-                테스트
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitting || !draftReady}
-                className="docket-label text-[11px] px-4 py-1.5 bg-(--seal) hover:bg-(--seal-dim) text-(--ink) font-semibold transition-colors disabled:opacity-50"
-              >
-                제출
-              </button>
-            </div>
+      {problems.length === 0 ? (
+        <p className="notice page">이 대회에는 아직 문제가 없습니다.</p>
+      ) : (
+        <div className="grid flex-1 gap-2 p-2 lg:min-h-0 lg:grid-cols-2">
+          <div className="sheet overflow-y-auto p-6 sm:p-8">
+            {currentProblem && (
+              <ProblemSheet
+                problem={currentProblem}
+                examples={testCases}
+                number={letter(activeIdx)}
+                mark={solvedIds.has(currentProblem.id) || justSolved ? "correct" : null}
+                drawMark={justSolved}
+              />
+            )}
           </div>
 
-          <div className="flex-1 min-h-0">
-            <Editor
-              height="100%"
-              language={MONACO_LANGUAGE[language] ?? "plaintext"}
-              theme={theme === "dark" ? "vs-dark" : "light"}
-              value={code}
-              onChange={(val) => updateCode(val || "")}
-              options={{
-                readOnly: !draftReady,
-                minimap: { enabled: false },
-                fontSize: 14,
-                fontFamily: "'JetBrains Mono', 'Fira Code', monospace",
-                padding: { top: 16 },
-                scrollBeyondLastLine: false,
-              }}
-            />
-          </div>
-
-          <div className="h-44 shrink-0 border-t border-(--rule) bg-(--ink) flex flex-col">
-            <div className="px-4 py-2 border-b border-(--rule) flex items-center gap-2">
-              {subId && (
-                <StampTag
-                  label={statusLabel(status)}
-                  tone={statusTone(status)}
-                  size="sm"
+          <div className="flex min-h-[80dvh] flex-col gap-2 lg:min-h-0">
+            <div className="sheet-plain flex min-h-0 flex-[3] flex-col overflow-hidden">
+              <div className="flex flex-none flex-wrap items-center justify-between gap-2 border-b border-line px-3 py-2">
+                <LanguageSelect
+                  value={language}
+                  disabled={!draftReady}
+                  onChange={(next) => {
+                    if (Object.values(STARTER_CODE).includes(code)) setCode(STARTER_CODE[next]);
+                    setLanguage(next);
+                    setDirty(true);
+                    setSaveState("saving");
+                  }}
                 />
-              )}
-              <span className="docket-label text-[10px] text-(--text-faint)">
-                결과
-              </span>
+                <div className="flex gap-2">
+                  <button onClick={handleTest} disabled={busy || !draftReady} className="btn btn-sm btn-line">
+                    {isTesting ? "실행하는 중" : "예제 실행"}
+                  </button>
+                  <button onClick={handleSubmit} disabled={busy || judging || !draftReady} className="btn btn-sm btn-fill">
+                    {isSubmitting ? "제출하는 중" : judging ? "채점하는 중" : "제출"}
+                  </button>
+                </div>
+              </div>
+              <div className="min-h-0 flex-1">
+                <CodeEditor language={language} value={code} onChange={updateCode} readOnly={!draftReady} />
+              </div>
             </div>
-            <div className="flex-1 p-3 text-xs font-mono text-(--text-dim) overflow-auto whitespace-pre-wrap">
-              {consoleOutput ||
-                '"테스트" 또는 "제출" 버튼을 눌러 결과를 확인하세요.'}
+
+            <div className="sheet-plain flex min-h-0 flex-[2] flex-col overflow-hidden">
+              <div role="group" aria-label="결과 보기" className="flex flex-none gap-1 border-b border-line px-3 py-1.5">
+                <button className="choice choice-sm" aria-pressed={activeConsoleTab === "run"} onClick={() => setActiveConsoleTab("run")}>실행 결과</button>
+                <button className="choice choice-sm" aria-pressed={activeConsoleTab === "submission"} onClick={() => setActiveConsoleTab("submission")}>채점 결과</button>
+              </div>
+              <div className="flex-1 overflow-auto p-5">
+                {activeConsoleTab === "run" && (
+                  <TestRunResult running={isTesting} result={testResult} error={testError} />
+                )}
+                {activeConsoleTab === "submission" && (
+                  <SubmissionResult
+                    submitting={isSubmitting}
+                    submitted={subId !== null}
+                    status={status}
+                    error={submitError}
+                  />
+                )}
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
