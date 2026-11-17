@@ -10,6 +10,7 @@ const LABELS: Record<string, string> = {
   "System Error": "시스템 오류",
   Pending: "대기 중",
   Running: "채점 중",
+  Unknown: "확인 필요",
 };
 
 export const verdictLabel = (status: string) => LABELS[status] ?? status;
@@ -19,7 +20,7 @@ export const isJudging = (status: string) =>
 
 export const verdictKind = (status: string): VerdictKind => {
   if (status === "Accepted") return "correct";
-  if (isJudging(status)) return "waiting";
+  if (isJudging(status) || status === "Unknown") return "waiting";
   return "wrong";
 };
 
@@ -33,6 +34,7 @@ const ADVICE: Record<string, string> = {
   "System Error": "채점 서버에 문제가 생겨 채점하지 못했습니다. 잠시 후 다시 제출해 주세요.",
   Pending: "채점 순서를 기다리고 있습니다.",
   Running: "채점하고 있습니다. 결과가 나오면 여기에 표시됩니다.",
+  Unknown: "채점이 오래 걸리고 있습니다. 잠시 뒤 ‘내 제출’에서 결과를 확인해 주세요.",
 };
 
 export const verdictAdvice = (status: string) => ADVICE[status] ?? "";
