@@ -91,7 +91,19 @@ export default function ContestWorkspace() {
       }
       setNow(Date.now());
       setContest(contestData);
+    })();
+    return () => { cancelled = true; };
+  }, [contestId]);
 
+  // 문제는 대회가 진행 중일 때만 받아 온다. 시작 전에 받아 두면 화면에는 안 보여도
+  // 개발자 도구의 네트워크 기록에서 문제를 미리 읽을 수 있고, 끝난 뒤에는 화면에 쓰지 않는다.
+  // (이것은 화면 쪽 조치일 뿐이고, 시작 전 조회를 실제로 막는 것은 DB 정책의 몫이다.)
+  const ongoing = contest !== null && getPhase(contest.start_time, contest.end_time, now) === "ongoing";
+
+  useEffect(() => {
+    if (!contestId || !ongoing) return;
+    let cancelled = false;
+    (async () => {
       const { data: cp, error: problemsError } = await supabase
         .from("contest_problems")
         .select("order, problems(*)")
@@ -118,7 +130,7 @@ export default function ContestWorkspace() {
       if (!cancelled && accepted) setSolvedIds(new Set(accepted.map((row) => row.problem_id)));
     })();
     return () => { cancelled = true; };
-  }, [contestId]);
+  }, [contestId, ongoing]);
 
   useEffect(() => {
     if (currentProblemId === undefined) return;
