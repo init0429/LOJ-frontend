@@ -96,7 +96,17 @@ export default function AdminContestsPage() {
       const { error: linkErr } = await supabase
         .from("contest_problems")
         .insert(rows);
-      if (linkErr) throw linkErr;
+      if (linkErr) {
+        // 문제 연결이 실패하면 방금 만든 대회를 지워, 문제 없는 대회가 목록에 남지 않게 한다.
+        const { error: undoErr } = await supabase.from("contests").delete().eq("id", contest.id);
+        if (undoErr) {
+          throw new Error(
+            `문제를 연결하지 못했고, 먼저 만든 “${contest.title}” 대회도 지우지 못했습니다. ` +
+            "DB에서 그 대회를 직접 지운 뒤 다시 개설해 주세요.",
+          );
+        }
+        throw linkErr;
+      }
 
       setExisting((prev) => [contest, ...prev]);
       setCreated(`“${contest.title}” 대회를 열었습니다.`);

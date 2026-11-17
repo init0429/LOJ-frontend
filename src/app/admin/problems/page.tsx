@@ -117,7 +117,18 @@ export default function AdminProblemsPage() {
       }));
 
       const { error: tcErr } = await supabase.from("test_cases").insert(rows);
-      if (tcErr) throw tcErr;
+      if (tcErr) {
+        // 두 번에 나눠 넣으므로, 테스트케이스가 실패하면 방금 만든 문제를 지워
+        // 채점할 수 없는 빈 문제가 목록에 남지 않게 한다.
+        const { error: undoErr } = await supabase.from("problems").delete().eq("id", problem.id);
+        if (undoErr) {
+          throw new Error(
+            `테스트케이스를 저장하지 못했고, 먼저 만든 ${problem.id}번 문제도 지우지 못했습니다. ` +
+            "DB에서 그 문제를 직접 지운 뒤 다시 등록해 주세요.",
+          );
+        }
+        throw tcErr;
+      }
 
       setExisting((prev) => [
         {
