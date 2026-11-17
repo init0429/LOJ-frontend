@@ -68,12 +68,12 @@ export default function Home() {
       </section>
 
       <section aria-label="두 수의 합 풀이를 채점한 예시" className="sheet min-w-0 p-6 sm:p-8">
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <span className="relative inline-flex h-14 w-14 flex-none items-center justify-center text-[28px] font-black">
             1
             <GradeMark key={sample.id} kind="correct" draw className="absolute -inset-1.5" />
           </span>
-          <h2 className="text-[22px] font-extrabold leading-snug">두 수의 합</h2>
+          <h2 className="whitespace-nowrap text-[22px] font-extrabold leading-snug">두 수의 합</h2>
           <span className="ml-auto pr-3">
             <Difficulty value={1} showLabel />
           </span>

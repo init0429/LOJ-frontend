@@ -88,13 +88,13 @@ export default function LeaderboardPage() {
           </p>
         ) : (
           <div className="table-wrap">
-            <table className="sheet-table min-w-[560px]">
+            <table className="sheet-table">
               <thead>
                 <tr>
-                  <th className="w-20">순위</th>
+                  <th className="w-14 sm:w-20">순위</th>
                   <th>이름</th>
-                  <th className="w-28">등급</th>
-                  <th className="num w-32">맞힌 문제</th>
+                  <th className="hidden w-28 sm:table-cell">등급</th>
+                  <th className="num hidden w-32 sm:table-cell">맞힌 문제</th>
                   <th className="num w-32 pr-9!">점수</th>
                 </tr>
               </thead>
@@ -103,8 +103,8 @@ export default function LeaderboardPage() {
                   <tr key={user.user_id}>
                     <td className="font-extrabold tabular-nums">{user.rank}</td>
                     <td className="font-bold">{user.username}</td>
-                    <td>{gradeOf(user.rating)}등급</td>
-                    <td className="num text-pencil">{user.solved.toLocaleString()}</td>
+                    <td className="hidden sm:table-cell">{gradeOf(user.rating)}등급</td>
+                    <td className="num hidden text-pencil sm:table-cell">{user.solved.toLocaleString()}</td>
                     <td className="num py-1! pr-9!">
                       <span className="hand text-[30px]">{user.rating.toLocaleString()}</span>
                     </td>

@@ -125,13 +125,13 @@ export default function ProblemsPage() {
           </p>
         ) : (
           <div className="table-wrap">
-            <table className="sheet-table min-w-[560px]">
+            <table className="sheet-table">
               <thead>
                 <tr>
-                  <th className="w-20">번호</th>
+                  <th className="w-14 sm:w-20">번호</th>
                   <th>제목</th>
-                  <th className="w-40">난이도</th>
-                  <th className="num w-28 pr-9!">정답률</th>
+                  <th className="w-28 sm:w-40">난이도</th>
+                  <th className="num hidden w-28 pr-9! sm:table-cell">정답률</th>
                 </tr>
               </thead>
               <tbody>
@@ -148,7 +148,7 @@ export default function ProblemsPage() {
                     <td>
                       <Difficulty value={problem.difficulty} />
                     </td>
-                    <td className="num pr-9! text-pencil">
+                    <td className="num hidden pr-9! text-pencil sm:table-cell">
                       {acceptance(problem.id) ?? <span aria-label="제출 없음">–</span>}
                     </td>
                   </tr>

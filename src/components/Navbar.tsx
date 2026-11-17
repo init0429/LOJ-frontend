@@ -70,7 +70,7 @@ export default function Navbar() {
         <Link href={session ? "/problems" : "/"} className="py-2 text-[26px]">
           <Logo />
         </Link>
-        <nav aria-label="주요 메뉴" className="flex flex-wrap items-center gap-1">
+        <nav aria-label="주요 메뉴" className="order-last -mx-2 flex w-full flex-wrap items-center gap-1 sm:order-none sm:mx-0 sm:w-auto">
           {items.map((item) => (
             <Link
               key={item.href}
