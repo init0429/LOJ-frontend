@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import CodeEditor from "@/components/CodeEditor";
-import { SettingRow, SettingsHeading, Switch } from "@/components/SettingsShell";
+import { SAVE_NOTE, SettingRow, SettingsHeading, Switch } from "@/components/SettingsShell";
 import { usePreferences } from "@/hooks/usePreferences";
 import { DEFAULT_PREFERENCES, FONT_SIZES, TAB_SIZES } from "@/lib/preferences";
 
@@ -24,7 +24,7 @@ export default function EditorSettings() {
 
   return (
     <>
-      <SettingsHeading title="에디터" lead="문제와 대회 화면의 코드 편집기에 적용됩니다. 이 브라우저에 저장됩니다." />
+      <SettingsHeading title="에디터" lead={`문제와 대회 화면의 코드 편집기에 적용됩니다. ${SAVE_NOTE}`} />
 
       <SettingRow label="글자 크기" htmlFor="editor-font-size">
         <select

@@ -44,6 +44,9 @@ export default function SettingsShell({ children }: { children: React.ReactNode 
   );
 }
 
+/** 언어·에디터·보기 설정을 어디에 저장하는지 */
+export const SAVE_NOTE = "로그인하면 계정에 저장되어 다른 기기에서도 그대로 적용됩니다. 로그인하지 않았으면 이 브라우저에만 저장됩니다.";
+
 /** 각 설정 항목의 제목과 설명 */
 export function SettingsHeading({ title, lead }: { title: string; lead?: React.ReactNode }) {
   return (

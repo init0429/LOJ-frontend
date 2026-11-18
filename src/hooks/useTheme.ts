@@ -1,9 +1,11 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { THEME_KEY as key, THEME_MODE_EVENT as modeEvent, readThemeMode, type ThemeMode } from "@/lib/theme";
+
+export type { ThemeMode } from "@/lib/theme";
 
 type Theme = "light" | "dark";
-const key = "loj-theme";
 
 function preferredTheme(): Theme {
   try {
@@ -44,17 +46,6 @@ export function useTheme() {
   return { theme, toggleTheme };
 }
 
-/** 고른 테마. "system"은 따로 고르지 않아 운영체제 설정을 따르는 것 */
-export type ThemeMode = Theme | "system";
-
-function savedMode(): ThemeMode {
-  try {
-    const saved = localStorage.getItem(key);
-    if (saved === "light" || saved === "dark") return saved;
-  } catch {}
-  return "system";
-}
-
 export function setThemeMode(mode: ThemeMode) {
   try {
     if (mode === "system") localStorage.removeItem(key);
@@ -64,8 +55,6 @@ export function setThemeMode(mode: ThemeMode) {
   document.documentElement.dataset.theme = preferredTheme();
   window.dispatchEvent(new Event(modeEvent));
 }
-
-const modeEvent = "loj-theme-mode";
 
 function subscribeMode(onChange: () => void) {
   const unsubscribe = subscribe(onChange);
@@ -78,5 +67,5 @@ function subscribeMode(onChange: () => void) {
 
 /** 설정 화면의 테마 고르기. 머리줄의 테마 단추로 바꿔도 따라 바뀐다. */
 export function useThemeMode(): [ThemeMode, (mode: ThemeMode) => void] {
-  return [useSyncExternalStore(subscribeMode, savedMode, (): ThemeMode => "system"), setThemeMode];
+  return [useSyncExternalStore(subscribeMode, readThemeMode, (): ThemeMode => "system"), setThemeMode];
 }

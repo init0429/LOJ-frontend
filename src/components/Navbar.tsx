@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import type { Session } from "@supabase/supabase-js";
+import { PROFILE_EVENT } from "@/lib/profile";
 import { supabase } from "@/lib/supabase";
 import Logo from "@/components/Logo";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -50,9 +51,16 @@ export default function Navbar() {
       }
     });
 
+    // 설정 화면에서 이름을 바꾸면 다시 읽는다.
+    const onProfileChange = () => {
+      if (currentUserId) void loadProfile(currentUserId);
+    };
+    window.addEventListener(PROFILE_EVENT, onProfileChange);
+
     return () => {
       active = false;
       subscription.unsubscribe();
+      window.removeEventListener(PROFILE_EVENT, onProfileChange);
     };
   }, []);
 

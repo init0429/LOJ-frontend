@@ -1,4 +1,5 @@
-// 설정 화면에서 고르는 편집기·보기 설정. 계정이 아니라 이 브라우저에 저장한다(서버에 보내지 않는다).
+// 설정 화면에서 고르는 편집기·보기 설정. 이 브라우저에 저장하고, 로그인했으면 계정에도 맞춰 둔다
+// (components/AccountSettingsSync).
 // 값이 망가졌거나 예전 형식이어도 화면이 깨지지 않도록 항목마다 따로 검사하고, 틀린 항목만 기본값으로 둔다.
 
 export interface Preferences {
@@ -62,12 +63,17 @@ export function readPreferencesRaw(): string | null {
   }
 }
 
+/** 기본값과 다른 항목만 남긴다(항목 순서는 늘 같다). 저장하거나 비교할 때 쓴다. */
+export function compactPreferences(preferences: Preferences): Partial<Preferences> {
+  return Object.fromEntries(
+    Object.entries(preferences).filter(([key, value]) => DEFAULT_PREFERENCES[key as keyof Preferences] !== value),
+  );
+}
+
 /** 일부만 바꿔 저장하고, 바뀐 전체 설정을 돌려준다. 기본값과 같은 항목은 남기지 않는다. */
 export function savePreferences(change: Partial<Preferences>): Preferences {
   const next = parsePreferences(JSON.stringify({ ...parsePreferences(readPreferencesRaw()), ...change }));
-  const changed = Object.fromEntries(
-    Object.entries(next).filter(([key, value]) => DEFAULT_PREFERENCES[key as keyof Preferences] !== value),
-  );
+  const changed = compactPreferences(next);
   try {
     if (Object.keys(changed).length === 0) localStorage.removeItem(PREFERENCES_KEY);
     else localStorage.setItem(PREFERENCES_KEY, JSON.stringify(changed));

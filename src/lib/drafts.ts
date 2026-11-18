@@ -1,10 +1,13 @@
 import { LANGUAGE_LABELS, STARTER_CODE } from "./languages";
 
 // 문제 화면에서 쓰던 코드와 마지막에 고른 언어를 이 브라우저에 남겨 둔다.
-// 새로고침하거나 다른 문제를 보고 와도 이어서 쓸 수 있게 하려는 것이라 서버에는 보내지 않는다.
+// 새로고침하거나 다른 문제를 보고 와도 이어서 쓸 수 있게 하려는 것이라 코드는 서버에 보내지 않는다.
+// (마지막에 고른 언어는 계정 설정에도 맞춰 둔다. components/AccountSettingsSync)
 // (대회 화면은 서버의 contest_drafts에 따로 저장한다.)
 
-const LANGUAGE_KEY = "loj-language";
+export const LANGUAGE_KEY = "loj-language";
+/** 같은 탭 안에서 기본 언어가 바뀌었음을 알리는 이벤트 */
+export const LANGUAGE_EVENT = "loj-language";
 const draftKey = (problemId: number | string, language: string) => `loj-draft:${problemId}:${language}`;
 
 export function loadLanguage(): string {
@@ -17,7 +20,9 @@ export function loadLanguage(): string {
 
 export function saveLanguage(language: string) {
   try {
+    if (localStorage.getItem(LANGUAGE_KEY) === language) return;
     localStorage.setItem(LANGUAGE_KEY, language);
+    window.dispatchEvent(new Event(LANGUAGE_EVENT));
   } catch {}
 }
 

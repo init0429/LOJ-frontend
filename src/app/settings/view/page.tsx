@@ -1,7 +1,7 @@
 "use client";
 
 import ProblemLevel from "@/components/ProblemLevel";
-import { SettingRow, SettingsHeading, Switch } from "@/components/SettingsShell";
+import { SAVE_NOTE, SettingRow, SettingsHeading, Switch } from "@/components/SettingsShell";
 import { usePreferences } from "@/hooks/usePreferences";
 import { useThemeMode, type ThemeMode } from "@/hooks/useTheme";
 
@@ -17,7 +17,7 @@ export default function ViewSettings() {
 
   return (
     <>
-      <SettingsHeading title="보기" lead="이 브라우저에 저장됩니다." />
+      <SettingsHeading title="보기" lead={SAVE_NOTE} />
 
       <SettingRow label="테마" hint="시스템 설정을 고르면 운영체제의 밝기 설정을 따릅니다.">
         <div role="radiogroup" aria-label="테마" className="inline-flex rounded-lg bg-fill p-0.5">

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AccountSettingsSync from "@/components/AccountSettingsSync";
 import Navbar from "@/components/Navbar";
 import { codeHangul, codeLatin } from "@/lib/fonts";
 
@@ -33,6 +34,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <a className="skip-link" href="#main-content">본문으로 건너뛰기</a>
         <Navbar />
+        <AccountSettingsSync />
         <main id="main-content" tabIndex={-1} className="flex-1 flex flex-col min-w-0">{children}</main>
       </body>
     </html>
