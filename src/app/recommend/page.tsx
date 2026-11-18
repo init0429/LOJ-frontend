@@ -38,6 +38,21 @@ function RecommendationList() {
   const [result, setResult] = useState<Recommendations | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloads, setReloads] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = () => {
+    setRefreshing(true);
+    getRecommendations(true).then(
+      (next) => {
+        setResult(next);
+        setRefreshing(false);
+      },
+      (err) => {
+        setError(errorMessage(err, "추천을 다시 받지 못했습니다."));
+        setRefreshing(false);
+      },
+    );
+  };
 
   useEffect(() => {
     let active = true;
@@ -70,5 +85,5 @@ function RecommendationList() {
     return <p role="status" className="notice mt-4">내 기록을 살펴보는 중…</p>;
   }
 
-  return <RecommendationView result={result} />;
+  return <RecommendationView result={result} onRefresh={refresh} refreshing={refreshing} />;
 }

@@ -4,7 +4,8 @@ import Navbar from "@/components/Navbar";
 import { codeHangul, codeLatin } from "@/lib/fonts";
 
 export const metadata: Metadata = {
-  title: "LOJ",
+  // 각 화면의 layout이 제목을 정하면 "문제 · LOJ"처럼 붙는다. 문제·대회 화면은 열린 문제 이름으로 바꾼다.
+  title: { default: "LOJ", template: "%s · LOJ" },
   description: "문제를 풀어 제출하면 바로 채점하는 온라인 저지입니다.",
   icons: {
     icon: [

@@ -110,6 +110,10 @@ export default function LeaderboardPage() {
                 ))}
               </tbody>
             </table>
+            <p className="mt-3 text-xs text-muted">
+              등급은 사람의 점수 구간입니다(문제 난이도와는 다름):{" "}
+              {GRADES.map((g) => (g.min ? `${g.grade}등급 ${g.min.toLocaleString("ko-KR")}점 이상` : `${g.grade}등급 그 아래`)).join(" · ")}
+            </p>
           </div>
         )}
       </div>

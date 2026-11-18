@@ -1,5 +1,5 @@
 import { CircleCheck, Clock, MemoryStick } from "lucide-react";
-import Difficulty from "@/components/Difficulty";
+import ProblemLevel from "@/components/ProblemLevel";
 import ProblemContent from "@/components/ProblemContent";
 import { formatSeconds } from "@/lib/format";
 import type { Problem, TestCase } from "@/lib/types";
@@ -23,7 +23,7 @@ export default function ProblemSheet({
         <span className="tabular-nums">{number ?? problem.id}.</span> {problem.title}
       </h1>
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Difficulty value={problem.difficulty} chip />
+        <ProblemLevel tier={problem.solvedac_tier} difficulty={problem.difficulty} chip />
         <span className="chip">
           <Clock size={12} aria-hidden="true" />
           시간 {formatSeconds(problem.time_limit_ms)}

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/fetch-all";
-import Difficulty from "@/components/Difficulty";
+import ProblemLevel from "@/components/ProblemLevel";
 import { CircleCheck, Search } from "lucide-react";
 
 interface Problem {
@@ -13,6 +13,7 @@ interface Problem {
   time_limit_ms: number;
   memory_limit_mb: number;
   difficulty: number | null; // 1~5. DB에 아직 값이 없는 문제는 null일 수 있음
+  solvedac_tier?: number | null;
 }
 
 export default function ProblemsPage() {
@@ -34,10 +35,16 @@ export default function ProblemsPage() {
       } = await supabase.auth.getSession();
 
       const [problemsRes, statsRes] = await Promise.all([
+        // 티어 칸이 없는 DB(마이그레이션 전)면 난이도만으로 다시 읽는다.
         supabase
           .from("problems")
-          .select("id, title, time_limit_ms, memory_limit_mb, difficulty")
-          .order("id", { ascending: true }),
+          .select("id, title, time_limit_ms, memory_limit_mb, difficulty, solvedac_tier")
+          .order("id", { ascending: true })
+          .then((full) =>
+            full.error
+              ? supabase.from("problems").select("id, title, time_limit_ms, memory_limit_mb, difficulty").order("id", { ascending: true })
+              : full,
+          ),
         // 정답률은 전체 사용자 기준이다. 남의 제출은 RLS로 읽을 수 없으므로 DB 함수가
         // 문제별 개수만 세어 준다(backend/migrations/20261118_row_level_security.sql).
         fetchAllRows<{ problem_id: number; submissions: number; accepted: number }>((from, to) =>
@@ -165,7 +172,7 @@ export default function ProblemsPage() {
                       {acceptance(problem.id) ?? <span aria-label="제출 없음">–</span>}
                     </td>
                     <td>
-                      <Difficulty value={problem.difficulty} />
+                      <ProblemLevel tier={problem.solvedac_tier} difficulty={problem.difficulty} />
                     </td>
                   </tr>
                 ))}

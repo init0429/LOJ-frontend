@@ -5,6 +5,8 @@ export interface Problem {
   input_description: string | null;
   output_description: string | null;
   difficulty: number | null;
+  /** solved.ac 티어(1~30). 정하지 않았거나 0(Unrated)이면 difficulty를 보여 준다. */
+  solvedac_tier?: number | null;
   time_limit_ms: number;
   memory_limit_mb: number;
 }

@@ -21,13 +21,14 @@ export interface Recommendations {
   boj: { problem_id: number; title: string; tier: number; tags: NamedTag[]; url: string }[];
 }
 
-export async function getRecommendations(): Promise<Recommendations> {
+/** refresh면 백준 문제를 새로 고른다(서버가 30초에 한 번만 허락한다). */
+export async function getRecommendations(refresh = false): Promise<Recommendations> {
   const { data: { session }, error } = await supabase.auth.getSession();
   if (error) throw error;
   if (!session) throw new Error("로그인이 필요합니다.");
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-  const response = await fetch(`${apiUrl.replace(/\/$/, "")}/recommendations`, {
+  const response = await fetch(`${apiUrl.replace(/\/$/, "")}/recommendations${refresh ? "?refresh=true" : ""}`, {
     headers: { Authorization: `Bearer ${session.access_token}` },
   });
   const data = await response.json().catch(() => ({}));

@@ -57,3 +57,29 @@ export function rankParticipants(
     return { ...row, rank };
   });
 }
+
+export interface StandingCell {
+  /** 처음 맞힌 시각(ms). 못 맞혔으면 null */
+  solvedAt: number | null;
+  /** 처음 맞히기 전까지(못 맞혔으면 전부) 틀린 횟수 */
+  misses: number;
+}
+
+// 채점이 끝나지 않았거나 채점 서버 탓인 결과는 틀린 횟수에 넣지 않는다.
+const NOT_ATTEMPTS = new Set(["Pending", "Running", "System Error", "Unknown"]);
+
+/** 문제마다 처음 맞힌 시각과 그 전까지 틀린 횟수 */
+export function buildCells(rows: RankingSubmission[]): Map<string, StandingCell> {
+  const cells = new Map<string, StandingCell>();
+  const ordered = [...rows].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+  for (const row of ordered) {
+    const key = `${row.user_id}:${row.problem_id}`;
+    const cell = cells.get(key) ?? { solvedAt: null, misses: 0 };
+    if (cell.solvedAt === null) {
+      if (row.status === "Accepted") cell.solvedAt = new Date(row.created_at).getTime();
+      else if (!NOT_ATTEMPTS.has(row.status)) cell.misses += 1;
+    }
+    cells.set(key, cell);
+  }
+  return cells;
+}

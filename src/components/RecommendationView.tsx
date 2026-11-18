@@ -2,15 +2,24 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Eye, EyeOff } from "lucide-react";
-import Difficulty from "@/components/Difficulty";
+import { ArrowUpRight, Eye, EyeOff, RefreshCw } from "lucide-react";
+import ProblemLevel from "@/components/ProblemLevel";
 import TierBadge from "@/components/TierBadge";
 import { formatDateTime } from "@/lib/format";
 import type { NamedTag, Recommendations } from "@/lib/recommend-api";
 import { tierName } from "@/lib/solvedac-tier";
 
 /** 추천 결과 한 벌: 기준, 약한 유형, LOJ 문제, 백준 문제 */
-export default function RecommendationView({ result }: { result: Recommendations }) {
+export default function RecommendationView({
+  result,
+  onRefresh,
+  refreshing = false,
+}: {
+  result: Recommendations;
+  /** 백준 문제를 새로 고른다. 없으면 단추를 숨긴다. */
+  onRefresh?: () => void;
+  refreshing?: boolean;
+}) {
   const { basis } = result;
   return (
     <>
@@ -44,7 +53,7 @@ export default function RecommendationView({ result }: { result: Recommendations
                   <span className="tabular-nums">{problem.id}.</span> {problem.title}
                 </Link>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  {problem.tier ? <TierBadge tier={problem.tier} /> : <Difficulty value={problem.difficulty} />}
+                  <ProblemLevel tier={problem.tier} difficulty={problem.difficulty} />
                   <SpoilerTags tags={problem.tags} />
                 </div>
               </li>
@@ -55,7 +64,15 @@ export default function RecommendationView({ result }: { result: Recommendations
 
       {result.boj.length > 0 && (
         <section className="mt-8" aria-labelledby="boj-title">
-          <h2 id="boj-title" className="section-title">백준에서 더 풀기</h2>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 id="boj-title" className="section-title">백준에서 더 풀기</h2>
+            {onRefresh && (
+              <button type="button" onClick={onRefresh} disabled={refreshing} className="btn btn-sm btn-line">
+                <RefreshCw size={14} className={refreshing ? "animate-spin" : undefined} aria-hidden="true" />
+                다른 문제 보기
+              </button>
+            )}
+          </div>
           <p className="mt-1 text-sm text-muted">LOJ에서는 채점할 수 없어서 백준 문제 페이지로 갑니다. 이미 푼 문제는 뺐습니다.</p>
           <ul className="mt-3 grid gap-2 sm:grid-cols-2">
             {result.boj.map((problem) => (

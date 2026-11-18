@@ -1,7 +1,7 @@
 "use client";
 
-import { Fragment, useEffect, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { LoaderCircle, Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import AdminGate from "@/components/AdminGate";
@@ -21,6 +21,8 @@ import { tierName } from "@/lib/solvedac-tier";
 import { parseBojId, type Tag } from "@/lib/tag-search";
 
 interface TestCaseDraft {
+  /** 이미 저장된 테스트케이스면 그 번호. 새로 추가한 것은 없다. */
+  id?: number;
   input_data: string;
   expected_output: string;
   is_hidden: boolean;
@@ -80,9 +82,12 @@ export default function AdminProblemsPage() {
   const [solvedac, setSolvedac] = useState<SolvedacInfo>(emptySolvedacInfo);
   const [tags, setTags] = useState<Tag[]>([]);
   const [tagReloads, setTagReloads] = useState(0);
-  const [editing, setEditing] = useState<{ id: number; info: SolvedacInfo } | null>(null);
-  const [editSaving, setEditSaving] = useState(false);
-  const [editError, setEditError] = useState<string | null>(null);
+  // 수정 중인 문제 번호. null이면 새 문제 등록. 수정을 시작할 때의 테스트케이스 번호도 기억한다(지운 것 찾기).
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [originalCaseIds, setOriginalCaseIds] = useState<number[]>([]);
+  const [openingId, setOpeningId] = useState<number | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [listMessage, setListMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -145,37 +150,174 @@ export default function AdminProblemsPage() {
     setDifficulty(1);
     setTestCases([emptyTestCase()]);
     setSolvedac(emptySolvedacInfo());
+    setEditingId(null);
+    setOriginalCaseIds([]);
   };
 
-  const handleCreate = async () => {
+  /** 등록과 수정이 같이 쓰는 확인. 문제가 있으면 오류 문구를 띄우고 null을 돌려준다. */
+  const validate = (): { bojId: number | null } | null => {
     setError(null);
     setCreated(null);
-
-    if (!title.trim()) return setError("제목을 적어 주세요.");
-    if (!description.trim()) return setError("문제 설명을 적어 주세요.");
+    const fail = (message: string) => {
+      setError(message);
+      return null;
+    };
+    if (!title.trim()) return fail("제목을 적어 주세요.");
+    if (!description.trim()) return fail("문제 설명을 적어 주세요.");
     const boj = checkBojId(solvedac);
-    if (boj.error) return setError(boj.error);
-    const validCases = testCases;
-    if (validCases.length === 0)
-      return setError("테스트케이스가 하나 이상 있어야 합니다.");
+    if (boj.error) return fail(boj.error);
+    if (testCases.length === 0) return fail("테스트케이스가 하나 이상 있어야 합니다.");
     if (
-      validCases.some((tc) => tc.input_data === "" && tc.expected_output === "") &&
-      !window.confirm("입력과 출력이 모두 빈 테스트케이스가 있습니다. 그대로 등록할까요?")
-    ) return;
+      testCases.some((tc) => tc.input_data === "" && tc.expected_output === "") &&
+      !window.confirm("입력과 출력이 모두 빈 테스트케이스가 있습니다. 그대로 저장할까요?")
+    ) return null;
+    return { bojId: boj.bojId };
+  };
 
+  const problemFields = () => ({
+    title: title.trim(),
+    description: description.trim(),
+    input_description: inputDescription.trim() || null,
+    output_description: outputDescription.trim() || null,
+    time_limit_ms: timeLimitMs,
+    memory_limit_mb: memoryLimitMb,
+    difficulty,
+  });
+
+  const startEdit = async (row: ProblemRow) => {
+    if (editingId !== null && editingId !== row.id && !window.confirm(`${editingId}번 문제를 고치던 내용을 버리고 ${row.id}번을 열까요?`)) return;
+    setOpeningId(row.id);
+    setListMessage(null);
+    const [problem, cases] = await Promise.all([
+      supabase.from("problems").select("*").eq("id", row.id).single(),
+      supabase.from("test_cases").select("id, input_data, expected_output, is_hidden").eq("problem_id", row.id).order("id"),
+    ]);
+    setOpeningId(null);
+    if (problem.error || cases.error || !problem.data) {
+      setListMessage({ ok: false, text: `${row.id}번 문제를 불러오지 못했습니다. 다시 눌러 주세요.` });
+      return;
+    }
+    const data = problem.data;
+    setTitle(data.title ?? "");
+    setDescription(data.description ?? "");
+    setInputDescription(data.input_description ?? "");
+    setOutputDescription(data.output_description ?? "");
+    setTimeLimitMs(data.time_limit_ms ?? 2000);
+    setMemoryLimitMb(data.memory_limit_mb ?? 128);
+    setDifficulty(data.difficulty ?? 1);
+    const loaded = (cases.data ?? []) as Required<TestCaseDraft>[];
+    setTestCases(loaded.length ? loaded : [emptyTestCase()]);
+    setOriginalCaseIds(loaded.map((tc) => tc.id));
+    setSolvedac(infoOf(row));
+    setEditingId(row.id);
+    setError(null);
+    setCreated(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleUpdate = async (problemId: number, bojId: number | null) => {
+    setSubmitting(true);
+    try {
+      const { error: problemErr } = await supabase.from("problems").update(problemFields()).eq("id", problemId);
+      if (problemErr) throw problemErr;
+
+      // 새 것 추가 → 있던 것 고치기 → 뺀 것 지우기 순서로 해서, 중간에 실패해도 채점할 테스트가 비지 않게 한다.
+      const added = testCases.filter((tc) => tc.id === undefined);
+      if (added.length) {
+        const { error: addErr } = await supabase.from("test_cases").insert(
+          added.map((tc) => ({ problem_id: problemId, input_data: tc.input_data, expected_output: tc.expected_output, is_hidden: tc.is_hidden })),
+        );
+        if (addErr) throw addErr;
+      }
+      for (const tc of testCases.filter((tc) => tc.id !== undefined)) {
+        const { error: caseErr } = await supabase
+          .from("test_cases")
+          .update({ input_data: tc.input_data, expected_output: tc.expected_output, is_hidden: tc.is_hidden })
+          .eq("id", tc.id!);
+        if (caseErr) throw caseErr;
+      }
+      const kept = new Set(testCases.map((tc) => tc.id));
+      const removed = originalCaseIds.filter((id) => !kept.has(id));
+      if (removed.length) {
+        const { error: removeErr } = await supabase.from("test_cases").delete().in("id", removed);
+        if (removeErr) throw removeErr;
+      }
+
+      if (solvedacReady) await saveProblemSolvedac(problemId, solvedac, bojId);
+
+      const savedTitle = title.trim();
+      setExisting((prev) =>
+        prev.map((row) =>
+          row.id === problemId
+            ? {
+                ...row,
+                title: savedTitle,
+                difficulty,
+                ...(solvedacReady && {
+                  solvedac_tier: solvedac.tier,
+                  boj_problem_id: bojId,
+                  problem_tags: solvedac.tags.map((tag_key) => ({ tag_key })),
+                }),
+              }
+            : row,
+        ),
+      );
+      resetForm();
+      setCreated(`${problemId}번 “${savedTitle}” 문제를 고쳤습니다.`);
+    } catch (err) {
+      setError(errorMessage(err, "고친 내용을 저장하지 못했습니다. 일부만 저장됐을 수 있으니 다시 저장해 주세요."));
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (row: ProblemRow) => {
+    setListMessage(null);
+    setDeletingId(row.id);
+    // 제출 기록이나 대회에 쓰인 문제는 지우지 않는다(사람들의 기록과 대회 결과가 함께 사라지므로).
+    const [subs, contests] = await Promise.all([
+      supabase.from("submissions").select("id", { count: "exact", head: true }).eq("problem_id", row.id),
+      supabase.from("contest_problems").select("contest_id", { count: "exact", head: true }).eq("problem_id", row.id),
+    ]);
+    if (subs.error || contests.error) {
+      setDeletingId(null);
+      return setListMessage({ ok: false, text: "지워도 되는지 확인하지 못했습니다. 다시 눌러 주세요." });
+    }
+    if (subs.count || contests.count) {
+      setDeletingId(null);
+      const reasons = [subs.count ? `제출 ${subs.count}개` : "", contests.count ? `대회 ${contests.count}곳` : ""].filter(Boolean).join(", ");
+      return setListMessage({ ok: false, text: `${row.id}번 문제는 ${reasons}에 쓰여서 지울 수 없습니다. 내용을 고치려면 "수정"을 쓰세요.` });
+    }
+    if (!window.confirm(`${row.id}번 “${row.title}” 문제와 테스트케이스를 지울까요? 되돌릴 수 없습니다.`)) {
+      setDeletingId(null);
+      return;
+    }
+    const { error: caseErr } = await supabase.from("test_cases").delete().eq("problem_id", row.id);
+    const { error: problemErr } = caseErr ? { error: caseErr } : await supabase.from("problems").delete().eq("id", row.id);
+    setDeletingId(null);
+    if (problemErr) {
+      return setListMessage({ ok: false, text: errorMessage(problemErr, `${row.id}번 문제를 지우지 못했습니다.`) });
+    }
+    setExisting((prev) => prev.filter((item) => item.id !== row.id));
+    if (editingId === row.id) resetForm();
+    setListMessage({ ok: true, text: `${row.id}번 “${row.title}” 문제를 지웠습니다.` });
+  };
+
+  const handleSave = async () => {
+    const checked = validate();
+    if (!checked) return;
+    if (editingId !== null) return handleUpdate(editingId, checked.bojId);
+    return handleCreate(checked.bojId);
+  };
+
+  const handleCreate = async (bojId: number | null) => {
+    const boj = { bojId };
+    const validCases = testCases;
     setSubmitting(true);
     try {
       const { data: problem, error: problemErr } = await supabase
         .from("problems")
-        .insert({
-          title: title.trim(),
-          description: description.trim(),
-          input_description: inputDescription.trim() || null,
-          output_description: outputDescription.trim() || null,
-          time_limit_ms: timeLimitMs,
-          memory_limit_mb: memoryLimitMb,
-          difficulty,
-        })
+        .insert(problemFields())
         .select()
         .single();
 
@@ -226,36 +368,24 @@ export default function AdminProblemsPage() {
     }
   };
 
-  const saveEdit = async () => {
-    if (!editing) return;
-    const boj = checkBojId(editing.info);
-    if (boj.error) return setEditError(boj.error);
-    setEditSaving(true);
-    setEditError(null);
-    try {
-      await saveProblemSolvedac(editing.id, editing.info, boj.bojId);
-      const { id, info } = editing;
-      setExisting((prev) =>
-        prev.map((row) =>
-          row.id === id
-            ? { ...row, solvedac_tier: info.tier, boj_problem_id: boj.bojId, problem_tags: info.tags.map((tag_key) => ({ tag_key })) }
-            : row,
-        ),
-      );
-      setEditing(null);
-    } catch (err) {
-      setEditError(errorMessage(err, "solved.ac 정보를 저장하지 못했습니다. 다시 눌러 주세요."));
-    } finally {
-      setEditSaving(false);
-    }
-  };
-
   if (checking || !isAdmin) return <AdminGate checking={checking} isAdmin={isAdmin} />;
 
   return (
     <div className="page page-narrow">
       <AdminTabs />
-      <h1 className="page-title">문제 등록</h1>
+      <div className="flex flex-wrap items-baseline justify-between gap-2">
+        <h1 className="page-title">{editingId === null ? "문제 등록" : `${editingId}번 문제 수정`}</h1>
+        {editingId !== null && (
+          <button type="button" onClick={resetForm} disabled={submitting} className="btn btn-sm btn-line">
+            수정 그만두고 새로 등록
+          </button>
+        )}
+      </div>
+      {editingId !== null && (
+        <p className="page-lead text-sm">
+          고친 내용은 앞으로의 채점에만 쓰입니다. 이미 끝난 제출의 판정은 바뀌지 않습니다.
+        </p>
+      )}
 
       <div className="mt-6">
         <div className="field">
@@ -353,14 +483,22 @@ export default function AdminProblemsPage() {
       <button type="button" onClick={addTestCase} className="btn btn-sm btn-line mt-3">테스트케이스 추가</button>
 
       <div className="mt-8 flex flex-wrap items-center gap-x-4 gap-y-2">
-        <button onClick={handleCreate} disabled={submitting} className="btn btn-fill">
-          {submitting ? "등록 중…" : "문제 등록"}
+        <button onClick={() => void handleSave()} disabled={submitting} className="btn btn-fill">
+          {editingId === null ? (submitting ? "등록 중…" : "문제 등록") : (submitting ? "저장하는 중…" : "고친 내용 저장")}
         </button>
+        {editingId !== null && (
+          <button type="button" onClick={resetForm} disabled={submitting} className="btn btn-line">취소</button>
+        )}
         {error && <p role="alert" className="notice-error">{error}</p>}
         {created && <p role="status">{created}</p>}
       </div>
 
       <h2 className="section-title mt-12">등록된 문제</h2>
+      {listMessage && (
+        <p role={listMessage.ok ? "status" : "alert"} className={`mt-2 text-sm ${listMessage.ok ? "" : "notice-error"}`}>
+          {listMessage.text}
+        </p>
+      )}
       <div className="mt-4">
         {existing.length === 0 ? (
           <p className="notice py-6">아직 등록된 문제가 없습니다.</p>
@@ -372,63 +510,46 @@ export default function AdminProblemsPage() {
                   <th className="w-16">번호</th>
                   <th>제목</th>
                   <th className="w-28">난이도</th>
-                  {solvedacReady && <th className="w-44">solved.ac</th>}
+                  {solvedacReady && <th className="w-36">solved.ac</th>}
+                  <th className="w-36"><span className="sr-only">관리</span></th>
                 </tr>
               </thead>
               <tbody>
                 {existing.map((p) => (
-                  <Fragment key={p.id}>
-                    <tr>
-                      <td className="font-semibold tabular-nums">{p.id}</td>
-                      <td>{p.title}</td>
-                      <td><Difficulty value={p.difficulty} /></td>
-                      {solvedacReady && (
-                        <td>
-                          <div className="flex items-center justify-between gap-2">
-                            <span className="text-sm text-muted">
-                              {p.solvedac_tier == null ? "—" : tierName(p.solvedac_tier)}
-                              {(p.problem_tags?.length ?? 0) > 0 && ` · 태그 ${p.problem_tags?.length}`}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setEditError(null);
-                                setEditing(editing?.id === p.id ? null : { id: p.id, info: infoOf(p) });
-                              }}
-                              aria-expanded={editing?.id === p.id}
-                              aria-label={`${p.id}번 solved.ac 정보 편집`}
-                              className="btn btn-sm btn-line"
-                            >
-                              편집
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </tr>
-                    {editing?.id === p.id && (
-                      <tr>
-                        <td colSpan={4} className="bg-transparent! pb-6">
-                          <div className="box p-4">
-                            <SolvedacProblemFields
-                              value={editing.info}
-                              onChange={(info) => setEditing({ id: p.id, info })}
-                              tags={tags}
-                              onTagsSynced={() => setTagReloads((count) => count + 1)}
-                            />
-                            <div className="mt-4 flex flex-wrap items-center gap-2">
-                              <button type="button" onClick={() => void saveEdit()} disabled={editSaving} className="btn btn-sm btn-fill">
-                                {editSaving ? "저장하는 중" : "저장"}
-                              </button>
-                              <button type="button" onClick={() => setEditing(null)} disabled={editSaving} className="btn btn-sm btn-line">
-                                취소
-                              </button>
-                              {editError && <p role="alert" className="notice-error text-sm">{editError}</p>}
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
+                  <tr key={p.id} aria-current={editingId === p.id ? "true" : undefined}>
+                    <td className="font-semibold tabular-nums">{p.id}</td>
+                    <td>{p.title}</td>
+                    <td><Difficulty value={p.difficulty} /></td>
+                    {solvedacReady && (
+                      <td className="text-sm text-muted">
+                        {p.solvedac_tier == null ? "—" : tierName(p.solvedac_tier)}
+                        {(p.problem_tags?.length ?? 0) > 0 && ` · 태그 ${p.problem_tags?.length}`}
+                      </td>
                     )}
-                  </Fragment>
+                    <td className="py-1.5!">
+                      <div className="flex justify-end gap-1">
+                        <button
+                          type="button"
+                          onClick={() => void startEdit(p)}
+                          disabled={openingId !== null || submitting}
+                          aria-label={`${p.id}번 문제 수정`}
+                          className="btn btn-sm btn-line"
+                        >
+                          {openingId === p.id && <LoaderCircle className="animate-spin" size={14} aria-hidden="true" />}
+                          {editingId === p.id ? "수정 중" : "수정"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleDelete(p)}
+                          disabled={deletingId !== null || submitting}
+                          aria-label={`${p.id}번 문제 삭제`}
+                          className="btn btn-sm px-2 text-muted hover:bg-fill hover:text-bad"
+                        >
+                          {deletingId === p.id ? <LoaderCircle className="animate-spin" size={14} aria-hidden="true" /> : <Trash2 size={14} aria-hidden="true" />}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
                 ))}
               </tbody>
             </table>

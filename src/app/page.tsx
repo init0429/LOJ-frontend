@@ -15,13 +15,24 @@ const SCHOOL_DOMAIN = process.env.NEXT_PUBLIC_ALLOWED_EMAIL_DOMAIN?.trim().repla
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // 로그인 여부를 알기 전에는 로그인 단추를 그리지 않는다(로그인한 사람에게 잠깐 보였다 사라지지 않게).
+  const [checking, setChecking] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
+    let active = true;
+    void supabase.auth.getSession().then(({ data }) => {
+      if (!active) return;
+      if (data.session) router.replace("/problems");
+      else setChecking(false);
+    });
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) router.replace("/problems");
     });
-    return () => subscription.unsubscribe();
+    return () => {
+      active = false;
+      subscription.unsubscribe();
+    };
   }, [router]);
 
   const handleGoogleLogin = async () => {
@@ -41,6 +52,10 @@ export default function Home() {
       setLoading(false);
     }
   };
+
+  if (checking) {
+    return <p role="status" className="notice page page-narrow">불러오는 중…</p>;
+  }
 
   return (
     <div className="page page-narrow">

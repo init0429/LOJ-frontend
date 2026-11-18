@@ -5,8 +5,10 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Code, CloudUpload, FileText, Play, SquareCheck, Terminal, Timer } from "lucide-react";
 import { supabase } from "@/lib/supabase";
+import { RUN_SHORTCUT, SUBMIT_SHORTCUT, useRunShortcuts } from "@/hooks/useRunShortcuts";
 import { useSubmissionFeedback, useSubmissionState } from "@/hooks/useSubmissionState";
 import CodeEditor from "@/components/CodeEditor";
+import ContestStandings from "@/components/ContestStandings";
 import LanguageSelect from "@/components/LanguageSelect";
 import Logo from "@/components/Logo";
 import ProblemNumber from "@/components/ProblemNumber";
@@ -14,6 +16,7 @@ import ProblemSheet from "@/components/ProblemSheet";
 import SubmissionResult from "@/components/SubmissionResult";
 import TestRunResult from "@/components/TestRunResult";
 import ThemeToggle from "@/components/ThemeToggle";
+import { loadLanguage, saveLanguage } from "@/lib/drafts";
 import { errorMessage } from "@/lib/errors";
 import { formatCountdown, formatDateTime } from "@/lib/format";
 import { submitCode, testCode } from "@/lib/judge-api";
@@ -97,13 +100,14 @@ export default function ContestWorkspace() {
     return () => { cancelled = true; };
   }, [contestId]);
 
-  // 문제는 대회가 진행 중일 때만 받아 온다. 시작 전에 받아 두면 화면에는 안 보여도
-  // 개발자 도구의 네트워크 기록에서 문제를 미리 읽을 수 있고, 끝난 뒤에는 화면에 쓰지 않는다.
-  // (이것은 화면 쪽 조치일 뿐이고, 시작 전 조회를 실제로 막는 것은 DB 정책의 몫이다.)
-  const ongoing = contest !== null && getPhase(contest.start_time, contest.end_time, now) === "ongoing";
+  // 문제는 대회가 시작한 뒤에만 받아 온다. 시작 전 조회는 DB 정책(RLS)이 막고, 화면도 요청하지 않는다.
+  // 끝난 대회는 문제 목록과 최종 순위를 보여 준다.
+  const currentPhase = contest !== null ? getPhase(contest.start_time, contest.end_time, now) : null;
+  const ongoing = currentPhase === "ongoing";
+  const started = currentPhase === "ongoing" || currentPhase === "ended";
 
   useEffect(() => {
-    if (!contestId || !ongoing) return;
+    if (!contestId || !started) return;
     let cancelled = false;
     (async () => {
       const { data: cp, error: problemsError } = await supabase
@@ -132,10 +136,10 @@ export default function ContestWorkspace() {
       if (!cancelled && accepted) setSolvedIds(new Set(accepted.map((row) => row.problem_id)));
     })();
     return () => { cancelled = true; };
-  }, [contestId, ongoing]);
+  }, [contestId, started]);
 
   useEffect(() => {
-    if (currentProblemId === undefined) return;
+    if (currentProblemId === undefined || !ongoing) return;
     let cancelled = false;
 
     (async () => {
@@ -174,8 +178,10 @@ export default function ContestWorkspace() {
         setCode(draft.code);
         setLanguage(draft.language);
       } else {
-        setLanguage("python");
-        setCode(STARTER_CODE["python"]);
+        // 처음 여는 문제는 마지막에 고른 언어의 시작 코드로 연다.
+        const preferred = loadLanguage();
+        setLanguage(preferred);
+        setCode(STARTER_CODE[preferred] ?? "");
       }
       setLoadedProblemId(currentProblemId);
       setDirty(false);
@@ -186,7 +192,7 @@ export default function ContestWorkspace() {
       setTestError(null);
     })();
     return () => { cancelled = true; };
-  }, [currentProblemId, contestId]);
+  }, [currentProblemId, contestId, ongoing]);
 
   useEffect(() => {
     if (!draftReady || !dirty) return;
@@ -291,6 +297,16 @@ export default function ContestWorkspace() {
     }
   };
 
+  const shortcutReady = phase === "ongoing" && draftReady && !isTesting && !isSubmitting;
+  useRunShortcuts(
+    () => { if (shortcutReady) void handleTest(); },
+    () => { if (shortcutReady && !judging) void handleSubmit(); },
+  );
+
+  useEffect(() => {
+    if (contest) document.title = `${contest.title} · LOJ`;
+  }, [contest]);
+
   if (loadError) {
     return (
       <div className="page page-narrow">
@@ -322,10 +338,38 @@ export default function ContestWorkspace() {
 
   if (phase === "ended") {
     return (
-      <div className="page page-narrow">
-        <h1 className="page-title">{contest.title}</h1>
-        <p className="page-lead">{formatDateTime(contest.end_time)}에 끝난 대회입니다.</p>
-        <Link href="/contests" className="btn btn-line mt-6">대회 목록</Link>
+      <div className="page">
+        <Link href="/contests" className="btn btn-sm gap-1 px-2 font-medium text-muted hover:bg-fill hover:text-fg">
+          ← 대회 목록
+        </Link>
+        <h1 className="page-title mt-4">{contest.title}</h1>
+        <p className="page-lead">{formatDateTime(contest.end_time)}에 끝난 대회입니다. 문제는 지금도 풀어 볼 수 있습니다.</p>
+
+        <section className="mt-8" aria-labelledby="ended-problems">
+          <h2 id="ended-problems" className="section-title">문제</h2>
+          {problems.length === 0 ? (
+            <p className="notice mt-3">문제를 불러오는 중이거나 문제가 없습니다.</p>
+          ) : (
+            <ul className="mt-3 grid gap-2 sm:grid-cols-2">
+              {problems.map((p, i) => (
+                <li key={p.id}>
+                  <Link href={`/problems/${p.id}`} className="box flex items-center gap-3 px-4 py-3 hover:bg-fill">
+                    <span className="font-semibold"><ProblemNumber id={letter(i)} solved={solvedIds.has(p.id)} /></span>
+                    <span className="min-w-0 flex-1 truncate">{p.title}</span>
+                    <span className="text-sm text-muted">풀어 보기 →</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+
+        <section className="mt-10" aria-labelledby="ended-standings">
+          <h2 id="ended-standings" className="section-title">최종 순위</h2>
+          {problems.length > 0 && (
+            <ContestStandings contestId={contest.id} problemIds={problems.map((p) => p.id)} startTime={contest.start_time} />
+          )}
+        </section>
       </div>
     );
   }
@@ -407,11 +451,11 @@ export default function ContestWorkspace() {
                   코드
                 </p>
                 <div className="btn-group">
-                  <button onClick={handleTest} disabled={busy || !draftReady} className="btn btn-sm btn-line">
+                  <button onClick={handleTest} disabled={busy || !draftReady} title={`예제 실행 (${RUN_SHORTCUT.label})`} aria-keyshortcuts={RUN_SHORTCUT.aria} className="btn btn-sm btn-line">
                     <Play size={13} fill="currentColor" aria-hidden="true" />
                     {isTesting ? "실행하는 중" : "예제 실행"}
                   </button>
-                  <button onClick={handleSubmit} disabled={busy || judging || !draftReady} className="btn btn-sm btn-submit">
+                  <button onClick={handleSubmit} disabled={busy || judging || !draftReady} title={`제출 (${SUBMIT_SHORTCUT.label})`} aria-keyshortcuts={SUBMIT_SHORTCUT.aria} className="btn btn-sm btn-submit">
                     <CloudUpload size={15} aria-hidden="true" />
                     {isSubmitting ? "제출하는 중" : judging ? "채점하는 중" : "제출"}
                   </button>
@@ -424,6 +468,7 @@ export default function ContestWorkspace() {
                   onChange={(next) => {
                     if (Object.values(STARTER_CODE).includes(code)) setCode(STARTER_CODE[next]);
                     setLanguage(next);
+                    saveLanguage(next);
                     setDirty(true);
                     setSaveState("saving");
                   }}

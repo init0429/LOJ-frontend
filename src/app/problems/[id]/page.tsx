@@ -3,24 +3,26 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { Code, CloudUpload, FileText, History, List, Play, SquareCheck, Terminal } from "lucide-react";
+import { Code, CloudUpload, FileText, History, List, Play, RotateCcw, SquareCheck, Terminal } from "lucide-react";
 import {
   Panel,
   Group as PanelGroup,
   Separator as PanelResizeHandle,
+  usePanelRef,
 } from "react-resizable-panels";
 import { supabase } from "@/lib/supabase";
+import { RUN_SHORTCUT, SUBMIT_SHORTCUT, useRunShortcuts } from "@/hooks/useRunShortcuts";
 import { useSubmissionFeedback, useSubmissionState } from "@/hooks/useSubmissionState";
 import CodeEditor from "@/components/CodeEditor";
 import LanguageSelect from "@/components/LanguageSelect";
 import Logo from "@/components/Logo";
 import ProblemSheet from "@/components/ProblemSheet";
+import SubmissionHistory from "@/components/SubmissionHistory";
 import SubmissionResult from "@/components/SubmissionResult";
 import TestRunResult from "@/components/TestRunResult";
 import ThemeToggle from "@/components/ThemeToggle";
-import Verdict from "@/components/Verdict";
 import { errorMessage } from "@/lib/errors";
-import { formatDateTime } from "@/lib/format";
+import { loadDraft, loadLanguage, saveDraft, saveLanguage } from "@/lib/drafts";
 import { submitCode, testCode } from "@/lib/judge-api";
 import { LANGUAGE_LABELS, STARTER_CODE } from "@/lib/languages";
 import type { Problem, Submission, TestCase, TestResult } from "@/lib/types";
@@ -43,9 +45,11 @@ function ProblemWorkspaceContent() {
   const [activeLeftTab, setActiveLeftTab] = useState<"description" | "history">("description");
   const [activeConsoleTab, setActiveConsoleTab] = useState<"run" | "submission">("run");
 
-  const [code, setCode] = useState(STARTER_CODE["python"]);
-  const [language, setLanguage] = useState("python");
-  const drafts = useRef<Record<string, string>>({});
+  // 마지막에 고른 언어와 이 문제에서 쓰던 코드를 브라우저에서 이어 받는다.
+  // (처음 그릴 때는 문제를 불러오는 중이라 편집기가 없으므로 서버 화면과 어긋나지 않는다.)
+  const [language, setLanguage] = useState(loadLanguage);
+  const [code, setCode] = useState(() => loadDraft(problemId, loadLanguage()));
+  const consolePanel = usePanelRef();
   const [mobilePane, setMobilePane] = useState<"description" | "code">("description");
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [historyError, setHistoryError] = useState<string | null>(null);
@@ -53,9 +57,38 @@ function ProblemWorkspaceContent() {
   const requestBusy = useRef(false);
 
   const handleLanguageChange = (newLanguage: string) => {
-    drafts.current[language] = code;
-    setCode(drafts.current[newLanguage] ?? STARTER_CODE[newLanguage] ?? "");
+    setCode(loadDraft(problemId, newLanguage));
     setLanguage(newLanguage);
+    saveLanguage(newLanguage);
+  };
+
+  const handleCodeChange = (value: string) => {
+    setCode(value);
+    saveDraft(problemId, language, value);
+  };
+
+  const resetCode = () => {
+    if (!window.confirm(`${LANGUAGE_LABELS[language] ?? language} 코드를 처음 상태로 되돌릴까요? 쓰던 코드는 사라집니다.`)) return;
+    const starter = STARTER_CODE[language] ?? "";
+    setCode(starter);
+    saveDraft(problemId, language, starter);
+  };
+
+  const loadSubmissionCode = (submittedLanguage: string, submittedCode: string) => {
+    const current = submittedLanguage === language ? code : loadDraft(problemId, submittedLanguage);
+    const untouched = current === (STARTER_CODE[submittedLanguage] ?? "") || current === submittedCode;
+    if (!untouched && !window.confirm("편집기의 코드를 이 제출의 코드로 바꿀까요? 지금 쓰던 코드는 사라집니다.")) return;
+    setLanguage(submittedLanguage);
+    setCode(submittedCode);
+    saveLanguage(submittedLanguage);
+    saveDraft(problemId, submittedLanguage, submittedCode);
+    setMobilePane("code");
+  };
+
+  // 실행하거나 제출하면 결과 칸을 넉넉하게 연다. 직접 더 크게 해 두었으면 그대로 둔다.
+  const showConsole = () => {
+    const panel = consolePanel.current;
+    if (panel && panel.getSize().asPercentage < 50) panel.resize("55%");
   };
 
   const [subId, setSubId] = useState<string | null>(null);
@@ -148,6 +181,7 @@ function ProblemWorkspaceContent() {
     setSubId(null);
     setActiveConsoleTab("submission");
     setMobilePane("code");
+    showConsole();
 
     try {
       setSubId(await submitCode({
@@ -170,6 +204,7 @@ function ProblemWorkspaceContent() {
     setTestError(null);
     setActiveConsoleTab("run");
     setMobilePane("code");
+    showConsole();
 
     try {
       setTestResult(await testCode({
@@ -185,6 +220,17 @@ function ProblemWorkspaceContent() {
       requestBusy.current = false;
     }
   };
+
+  // 단축키도 버튼과 같은 조건에서만 동작한다(채점 중에는 다시 제출하지 않는다).
+  const idle = !isTesting && !isSubmitting && problem !== null && code.trim() !== "";
+  useRunShortcuts(
+    () => { if (idle) void handleTest(); },
+    () => { if (idle && !judging) void handleSubmit(); },
+  );
+
+  useEffect(() => {
+    if (problem) document.title = `${problem.id}. ${problem.title} · LOJ`;
+  }, [problem]);
 
   if (loadError) {
     return (
@@ -214,11 +260,11 @@ function ProblemWorkspaceContent() {
           </Link>
         </div>
         <div className="btn-group md:absolute md:left-1/2 md:-translate-x-1/2">
-          <button onClick={handleTest} disabled={busy || !code.trim()} className="btn btn-sm btn-line">
+          <button onClick={handleTest} disabled={busy || !code.trim()} title={`예제 실행 (${RUN_SHORTCUT.label})`} aria-keyshortcuts={RUN_SHORTCUT.aria} className="btn btn-sm btn-line">
             <Play size={13} fill="currentColor" aria-hidden="true" />
             {isTesting ? "실행하는 중" : "예제 실행"}
           </button>
-          <button onClick={handleSubmit} disabled={busy || judging || !code.trim()} className="btn btn-sm btn-submit">
+          <button onClick={handleSubmit} disabled={busy || judging || !code.trim()} title={`제출 (${SUBMIT_SHORTCUT.label})`} aria-keyshortcuts={SUBMIT_SHORTCUT.aria} className="btn btn-sm btn-submit">
             <CloudUpload size={15} aria-hidden="true" />
             {isSubmitting ? "제출하는 중" : judging ? "채점하는 중" : "제출"}
           </button>
@@ -267,24 +313,7 @@ function ProblemWorkspaceContent() {
                   ) : history.length === 0 ? (
                     <p className="notice mt-4">아직 제출한 적이 없습니다. 코드를 쓰고 ‘제출’을 눌러 보세요.</p>
                   ) : (
-                    <table className="sheet-table mt-3">
-                      <thead>
-                        <tr>
-                          <th>결과</th>
-                          <th>언어</th>
-                          <th>제출한 때</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {history.map((sub) => (
-                          <tr key={sub.id}>
-                            <td className="py-2!"><Verdict status={sub.status} size="sm" /></td>
-                            <td>{LANGUAGE_LABELS[sub.language] ?? sub.language}</td>
-                            <td className="text-muted">{formatDateTime(sub.created_at)}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <SubmissionHistory history={history} onLoadCode={loadSubmissionCode} />
                   )}
                 </section>
               )}
@@ -302,17 +331,26 @@ function ProblemWorkspaceContent() {
                     코드
                   </p>
                 </div>
-                <div className="flex-none border-b border-line px-1.5 py-1">
+                <div className="flex flex-none items-center justify-between gap-2 border-b border-line px-1.5 py-1">
                   <LanguageSelect value={language} onChange={handleLanguageChange} />
+                  <button
+                    type="button"
+                    onClick={resetCode}
+                    title="처음 코드로 되돌리기"
+                    aria-label="처음 코드로 되돌리기"
+                    className="inline-flex size-7 flex-none items-center justify-center rounded-md text-muted hover:bg-fill hover:text-fg"
+                  >
+                    <RotateCcw size={14} aria-hidden="true" />
+                  </button>
                 </div>
                 <div className="min-h-0 flex-1">
-                  <CodeEditor language={language} value={code} onChange={setCode} />
+                  <CodeEditor language={language} value={code} onChange={handleCodeChange} />
                 </div>
               </Panel>
 
               <PanelResizeHandle className="workspace-divider workspace-divider-row" />
 
-              <Panel defaultSize="36%" minSize="20%" className="box flex flex-col overflow-hidden">
+              <Panel panelRef={consolePanel} defaultSize="36%" minSize="20%" className="box flex flex-col overflow-hidden">
                 <div role="group" aria-label="결과 보기" className="panel-head">
                   <button className="panel-tab" aria-pressed={activeConsoleTab === "run"} onClick={() => setActiveConsoleTab("run")}>
                     <SquareCheck size={14} className="text-ok" aria-hidden="true" />

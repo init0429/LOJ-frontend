@@ -100,3 +100,18 @@ test("a broken recommendation response is reported", async () => {
   });
   await assert.rejects(api.getRecommendations(), { message: "추천 결과를 받지 못했습니다." });
 });
+
+test("asking for other BOJ problems adds the refresh flag", async () => {
+  const calls = [];
+  const body = { basis: {}, starter: false, weak_tags: [], loj: [], boj: [] };
+  const api = load("recommend-api.ts", {
+    require: () => ({ supabase: { auth: { getSession: async () => ({ data: { session: { access_token: "t" } }, error: null }) } } }),
+    process: { env: { NEXT_PUBLIC_API_URL: "https://loj.example/api" } },
+    fetch: async (...args) => {
+      calls.push(args);
+      return { ok: true, status: 200, json: async () => body };
+    },
+  });
+  await api.getRecommendations(true);
+  assert.equal(calls[0][0], "https://loj.example/api/recommendations?refresh=true");
+});
