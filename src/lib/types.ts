@@ -29,14 +29,30 @@ export interface Submission {
   created_at: string;
 }
 
+export interface CaseResult {
+  status: string;
+  input: string;
+  expected: string;
+  actual: string;
+}
+
 export interface TestResult {
   status: string;
   /** 컴파일 오류처럼 테스트케이스와 무관한 메시지 */
   message?: string;
-  test_cases?: {
-    status: string;
-    input: string;
-    expected: string;
-    actual: string;
-  }[];
+  test_cases?: CaseResult[];
+  /** 예제 수. test_cases가 이보다 적으면 시간이 모자라 뒤쪽 예제를 돌리지 못한 것 */
+  total?: number;
+}
+
+/** 제출 채점 결과의 설명(submissions.feedback) */
+export interface SubmissionFeedback {
+  passed: number;
+  total: number;
+  /** 처음 틀린 테스트의 번호(1부터). 공개 예제가 먼저 채점되므로 예제 수 이하면 그 예제다 */
+  failed_test?: number;
+  /** 틀린 테스트가 공개 예제일 때만 있다 */
+  example?: { input: string; expected: string; actual: string };
+  /** 컴파일 오류 메시지 */
+  message?: string;
 }

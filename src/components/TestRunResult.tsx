@@ -1,7 +1,13 @@
+"use client";
+
+import { useState } from "react";
+import { Check, X } from "lucide-react";
+import OutputComparison from "@/components/OutputComparison";
 import Verdict from "@/components/Verdict";
 import type { TestResult } from "@/lib/types";
+import { verdictLabel } from "@/lib/verdict";
 
-/** ‘예제 실행’의 결과. 틀린 예제는 입력과 두 출력을 나란히 보여 준다. */
+/** ‘예제 실행’의 결과. 예제마다 탭을 두고, 처음엔 처음 틀린 예제를 펼쳐 둔다. */
 export default function TestRunResult({
   running,
   result,
@@ -11,6 +17,9 @@ export default function TestRunResult({
   result: TestResult | null;
   error: string | null;
 }) {
+  // 고른 탭은 그 결과에만 쓴다. 다시 실행하면 새 결과의 처음 틀린 예제로 돌아간다.
+  const [picked, setPicked] = useState<{ result: TestResult; index: number } | null>(null);
+
   if (running) {
     return <p role="status" className="notice">실행 중…</p>;
   }
@@ -22,38 +31,56 @@ export default function TestRunResult({
   }
 
   const cases = result.test_cases ?? [];
+  const total = Math.max(result.total ?? 0, cases.length);
+  const passed = cases.filter((testCase) => testCase.status === "Accepted").length;
+  const firstFailed = cases.findIndex((testCase) => testCase.status !== "Accepted");
+  const selected = picked?.result === result ? picked.index : Math.max(firstFailed, 0);
+
   return (
-    <div role="status">
-      <Verdict status={result.status} />
+    <div>
+      <p role="status" className="flex flex-wrap items-baseline gap-x-3">
+        <Verdict status={result.status} size="lg" />
+        {cases.length > 0 && (
+          <span className="text-sm text-muted tabular-nums">예제 {total}개 중 {passed}개 통과</span>
+        )}
+      </p>
+      {cases.length > 0 && cases.length < total && (
+        <p className="mt-1 text-sm text-muted">
+          시간이 모자라 남은 예제 {total - cases.length}개를 실행하지 못했습니다.
+        </p>
+      )}
       {result.message && <pre className="code-box mt-3 max-h-64 overflow-auto">{result.message}</pre>}
-      <ol className="mt-3 space-y-4">
-        {cases.map((testCase, index) => (
-          <li key={index}>
-            <p className="flex items-center gap-2 text-sm">
-              <span className="font-semibold">예제 {index + 1}</span>
-              <Verdict status={testCase.status} size="sm" />
+
+      {cases.length > 0 && (
+        <>
+          <div role="group" aria-label="예제 고르기" className="mt-3 flex flex-wrap gap-1 border-b border-line">
+            {cases.map((testCase, index) => {
+              const ok = testCase.status === "Accepted";
+              const Icon = ok ? Check : X;
+              return (
+                <button
+                  key={index}
+                  type="button"
+                  className="tab tab-sm gap-1.5"
+                  aria-pressed={index === selected}
+                  onClick={() => setPicked({ result, index })}
+                >
+                  <Icon size={14} strokeWidth={2.5} aria-hidden="true" className={ok ? "text-ok" : "text-bad"} />
+                  예제 {index + 1}
+                  <span className="sr-only">: {verdictLabel(testCase.status)}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="mt-3">
+            <p className="mb-2 text-sm">
+              <span className="font-semibold">예제 {selected + 1}</span>{" "}
+              <Verdict status={cases[selected].status} size="sm" />
             </p>
-            {testCase.status !== "Accepted" && (
-              <dl className="mt-2 grid gap-3 md:grid-cols-3">
-                {[
-                  ["입력", testCase.input],
-                  ["기대한 출력", testCase.expected],
-                  ["내 출력", testCase.actual],
-                ].map(([name, value]) => (
-                  <div key={name} className="min-w-0">
-                    <dt className="text-sm text-muted">{name}</dt>
-                    <dd>
-                      <pre className="code-box mt-1 max-h-48 overflow-auto">
-                        {value.trim() || <span className="text-muted">(출력 없음)</span>}
-                      </pre>
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-          </li>
-        ))}
-      </ol>
+            <OutputComparison {...cases[selected]} />
+          </div>
+        </>
+      )}
     </div>
   );
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
-import { useSubmissionState } from "@/hooks/useSubmissionState";
+import { useSubmissionFeedback, useSubmissionState } from "@/hooks/useSubmissionState";
 import CodeEditor from "@/components/CodeEditor";
 import LanguageSelect from "@/components/LanguageSelect";
 import Logo from "@/components/Logo";
@@ -53,6 +53,7 @@ export default function ContestWorkspace() {
 
   const [subId, setSubId] = useState<string | null>(null);
   const status = useSubmissionState(subId);
+  const feedback = useSubmissionFeedback(subId, status);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isTesting, setIsTesting] = useState(false);
@@ -429,6 +430,7 @@ export default function ContestWorkspace() {
                     submitting={isSubmitting}
                     submitted={subId !== null}
                     status={status}
+                    feedback={feedback}
                     error={submitError}
                   />
                 )}

@@ -10,7 +10,7 @@ import {
   Separator as PanelResizeHandle,
 } from "react-resizable-panels";
 import { supabase } from "@/lib/supabase";
-import { useSubmissionState } from "@/hooks/useSubmissionState";
+import { useSubmissionFeedback, useSubmissionState } from "@/hooks/useSubmissionState";
 import CodeEditor from "@/components/CodeEditor";
 import LanguageSelect from "@/components/LanguageSelect";
 import ProblemSheet from "@/components/ProblemSheet";
@@ -59,6 +59,7 @@ function ProblemWorkspaceContent() {
 
   const [subId, setSubId] = useState<string | null>(null);
   const status = useSubmissionState(subId);
+  const feedback = useSubmissionFeedback(subId, status);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<TestResult | null>(null);
@@ -308,6 +309,7 @@ function ProblemWorkspaceContent() {
                       submitting={isSubmitting}
                       submitted={subId !== null}
                       status={status}
+                      feedback={feedback}
                       error={submitError}
                     />
                   )}
