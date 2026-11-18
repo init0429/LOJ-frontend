@@ -57,3 +57,21 @@ export async function startSolvedacLink(): Promise<string> {
 export async function unlinkSolvedac(): Promise<void> {
   await request("DELETE", "");
 }
+
+/** 관리자용: BOJ 문제의 solved.ac 티어와 태그 */
+export interface BojProblem {
+  boj_problem_id: number;
+  title: string;
+  tier: number;
+  tags: string[];
+}
+
+export async function getBojProblem(bojId: number): Promise<BojProblem> {
+  return (await request("GET", `/problems/${bojId}`)) as BojProblem;
+}
+
+/** 관리자용: solved.ac 태그 목록을 다시 받아 tags 표에 넣는다. 받은 태그 수를 돌려준다. */
+export async function syncSolvedacTags(): Promise<number> {
+  const data = (await request("POST", "/tags/sync")) as { count?: unknown };
+  return typeof data.count === "number" ? data.count : 0;
+}

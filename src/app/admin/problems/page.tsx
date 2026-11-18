@@ -1,14 +1,24 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import AdminGate from "@/components/AdminGate";
 import AdminTabs from "@/components/AdminTabs";
 import Difficulty from "@/components/Difficulty";
+import SolvedacProblemFields from "@/components/SolvedacProblemFields";
 import { DIFFICULTY_LEVELS, difficultyLabel } from "@/lib/difficulty";
 import { errorMessage } from "@/lib/errors";
+import {
+  emptySolvedacInfo,
+  hasSolvedacInfo,
+  loadTags,
+  saveProblemSolvedac,
+  type SolvedacInfo,
+} from "@/lib/problem-solvedac";
+import { tierName } from "@/lib/solvedac-tier";
+import { parseBojId, type Tag } from "@/lib/tag-search";
 
 interface TestCaseDraft {
   input_data: string;
@@ -20,6 +30,24 @@ interface ProblemRow {
   id: number;
   title: string;
   difficulty: number | null;
+  solvedac_tier?: number | null;
+  boj_problem_id?: number | null;
+  problem_tags?: { tag_key: string }[];
+}
+
+const infoOf = (row: ProblemRow): SolvedacInfo => ({
+  bojId: row.boj_problem_id ? String(row.boj_problem_id) : "",
+  tier: row.solvedac_tier ?? null,
+  tags: (row.problem_tags ?? []).map((tag) => tag.tag_key),
+});
+
+/** BOJ 번호 칸이 비었으면 null, 숫자가 아니면 오류 문구를 돌려준다. */
+function checkBojId(info: SolvedacInfo): { bojId: number | null; error: string | null } {
+  if (info.bojId.trim() === "") return { bojId: null, error: null };
+  const bojId = parseBojId(info.bojId);
+  return bojId === null
+    ? { bojId: null, error: "BOJ 문제 번호는 1 이상의 숫자로 적어 주세요." }
+    : { bojId, error: null };
 }
 
 const emptyTestCase = (): TestCaseDraft => ({
@@ -47,14 +75,55 @@ export default function AdminProblemsPage() {
   const [error, setError] = useState<string | null>(null);
   const [created, setCreated] = useState<string | null>(null);
 
+  // solved.ac 태그·티어. DB에 그 칸이 아직 없으면(마이그레이션 전) false가 되고 관련 칸을 숨긴다.
+  const [solvedacReady, setSolvedacReady] = useState<boolean | null>(null);
+  const [solvedac, setSolvedac] = useState<SolvedacInfo>(emptySolvedacInfo);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [tagReloads, setTagReloads] = useState(0);
+  const [editing, setEditing] = useState<{ id: number; info: SolvedacInfo } | null>(null);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!isAdmin) return;
-    supabase
-      .from("problems")
-      .select("id, title, difficulty")
-      .order("id", { ascending: false })
-      .then(({ data }) => setExisting(data || []));
+    let active = true;
+    const load = async () => {
+      const full = await supabase
+        .from("problems")
+        .select("id, title, difficulty, solvedac_tier, boj_problem_id, problem_tags(tag_key)")
+        .order("id", { ascending: false });
+      if (!active) return;
+      if (!full.error) {
+        setSolvedacReady(true);
+        setExisting((full.data as ProblemRow[]) || []);
+        return;
+      }
+      const basic = await supabase.from("problems").select("id, title, difficulty").order("id", { ascending: false });
+      if (!active) return;
+      setSolvedacReady(false);
+      setExisting(basic.data || []);
+    };
+    void load();
+    return () => {
+      active = false;
+    };
   }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin || !solvedacReady) return;
+    let active = true;
+    loadTags().then(
+      (next) => {
+        if (active) setTags(next);
+      },
+      () => {
+        if (active) setTags([]);
+      },
+    );
+    return () => {
+      active = false;
+    };
+  }, [isAdmin, solvedacReady, tagReloads]);
 
   const updateTestCase = (idx: number, patch: Partial<TestCaseDraft>) => {
     setTestCases((prev) =>
@@ -75,6 +144,7 @@ export default function AdminProblemsPage() {
     setMemoryLimitMb(128);
     setDifficulty(1);
     setTestCases([emptyTestCase()]);
+    setSolvedac(emptySolvedacInfo());
   };
 
   const handleCreate = async () => {
@@ -83,6 +153,8 @@ export default function AdminProblemsPage() {
 
     if (!title.trim()) return setError("제목을 적어 주세요.");
     if (!description.trim()) return setError("문제 설명을 적어 주세요.");
+    const boj = checkBojId(solvedac);
+    if (boj.error) return setError(boj.error);
     const validCases = testCases;
     if (validCases.length === 0)
       return setError("테스트케이스가 하나 이상 있어야 합니다.");
@@ -130,20 +202,51 @@ export default function AdminProblemsPage() {
         throw tcErr;
       }
 
-      setExisting((prev) => [
-        {
-          id: problem.id,
-          title: problem.title,
-          difficulty: problem.difficulty,
-        },
-        ...prev,
-      ]);
-      setCreated(`${problem.id}번 “${problem.title}” 문제를 등록했습니다.`);
+      // solved.ac 정보는 따로 저장한다. 실패해도 문제는 이미 등록됐으니 목록에서 다시 편집하면 된다.
+      let solvedacNote = "";
+      const row: ProblemRow = { id: problem.id, title: problem.title, difficulty: problem.difficulty };
+      if (solvedacReady && hasSolvedacInfo(solvedac)) {
+        try {
+          await saveProblemSolvedac(problem.id, solvedac, boj.bojId);
+          row.solvedac_tier = solvedac.tier;
+          row.boj_problem_id = boj.bojId;
+          row.problem_tags = solvedac.tags.map((tag_key) => ({ tag_key }));
+        } catch (err) {
+          solvedacNote = ` 다만 solved.ac 정보는 저장하지 못했습니다(${errorMessage(err, "알 수 없는 오류")}). 아래 목록에서 다시 편집해 주세요.`;
+        }
+      }
+
+      setExisting((prev) => [row, ...prev]);
+      setCreated(`${problem.id}번 “${problem.title}” 문제를 등록했습니다.${solvedacNote}`);
       resetForm();
     } catch (err) {
       setError(errorMessage(err, "문제를 등록하지 못했습니다. 다시 눌러 주세요."));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    const boj = checkBojId(editing.info);
+    if (boj.error) return setEditError(boj.error);
+    setEditSaving(true);
+    setEditError(null);
+    try {
+      await saveProblemSolvedac(editing.id, editing.info, boj.bojId);
+      const { id, info } = editing;
+      setExisting((prev) =>
+        prev.map((row) =>
+          row.id === id
+            ? { ...row, solvedac_tier: info.tier, boj_problem_id: boj.bojId, problem_tags: info.tags.map((tag_key) => ({ tag_key })) }
+            : row,
+        ),
+      );
+      setEditing(null);
+    } catch (err) {
+      setEditError(errorMessage(err, "solved.ac 정보를 저장하지 못했습니다. 다시 눌러 주세요."));
+    } finally {
+      setEditSaving(false);
     }
   };
 
@@ -199,6 +302,22 @@ export default function AdminProblemsPage() {
         </div>
       </div>
 
+      <h2 className="section-title mt-10">solved.ac 티어와 태그</h2>
+      {solvedacReady === false ? (
+        <p className="notice mt-2 text-sm">
+          DB에 solved.ac 칸이 아직 없습니다. migrations/20261118_solvedac_tags.sql을 실행하면 여기서 고를 수 있습니다.
+        </p>
+      ) : (
+        <div className="mt-3">
+          <SolvedacProblemFields
+            value={solvedac}
+            onChange={setSolvedac}
+            tags={tags}
+            onTagsSynced={() => setTagReloads((count) => count + 1)}
+          />
+        </div>
+      )}
+
       <h2 className="section-title mt-10">테스트케이스</h2>
       <p className="mt-1 text-sm text-muted">숨김으로 표시한 것은 채점에만 쓰이고 문제에는 보이지 않습니다.</p>
       <ol className="mt-3 space-y-3">
@@ -242,28 +361,78 @@ export default function AdminProblemsPage() {
       </div>
 
       <h2 className="section-title mt-12">등록된 문제</h2>
-      <div className="box mt-4 overflow-hidden">
+      <div className="mt-4">
         {existing.length === 0 ? (
-          <p className="notice p-6">아직 등록된 문제가 없습니다.</p>
+          <p className="notice py-6">아직 등록된 문제가 없습니다.</p>
         ) : (
-          <table className="sheet-table">
-            <thead>
-              <tr>
-                <th className="w-20">번호</th>
-                <th>제목</th>
-                <th className="w-36">난이도</th>
-              </tr>
-            </thead>
-            <tbody>
-              {existing.map((p) => (
-                <tr key={p.id}>
-                  <td className="font-semibold tabular-nums">{p.id}</td>
-                  <td>{p.title}</td>
-                  <td><Difficulty value={p.difficulty} /></td>
+          <div className="table-wrap">
+            <table className="sheet-table">
+              <thead>
+                <tr>
+                  <th className="w-16">번호</th>
+                  <th>제목</th>
+                  <th className="w-28">난이도</th>
+                  {solvedacReady && <th className="w-44">solved.ac</th>}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {existing.map((p) => (
+                  <Fragment key={p.id}>
+                    <tr>
+                      <td className="font-semibold tabular-nums">{p.id}</td>
+                      <td>{p.title}</td>
+                      <td><Difficulty value={p.difficulty} /></td>
+                      {solvedacReady && (
+                        <td>
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-sm text-muted">
+                              {p.solvedac_tier == null ? "—" : tierName(p.solvedac_tier)}
+                              {(p.problem_tags?.length ?? 0) > 0 && ` · 태그 ${p.problem_tags?.length}`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditError(null);
+                                setEditing(editing?.id === p.id ? null : { id: p.id, info: infoOf(p) });
+                              }}
+                              aria-expanded={editing?.id === p.id}
+                              aria-label={`${p.id}번 solved.ac 정보 편집`}
+                              className="btn btn-sm btn-line"
+                            >
+                              편집
+                            </button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                    {editing?.id === p.id && (
+                      <tr>
+                        <td colSpan={4} className="bg-transparent! pb-6">
+                          <div className="box p-4">
+                            <SolvedacProblemFields
+                              value={editing.info}
+                              onChange={(info) => setEditing({ id: p.id, info })}
+                              tags={tags}
+                              onTagsSynced={() => setTagReloads((count) => count + 1)}
+                            />
+                            <div className="mt-4 flex flex-wrap items-center gap-2">
+                              <button type="button" onClick={() => void saveEdit()} disabled={editSaving} className="btn btn-sm btn-fill">
+                                {editSaving ? "저장하는 중" : "저장"}
+                              </button>
+                              <button type="button" onClick={() => setEditing(null)} disabled={editSaving} className="btn btn-sm btn-line">
+                                취소
+                              </button>
+                              {editError && <p role="alert" className="notice-error text-sm">{editError}</p>}
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
