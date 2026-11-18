@@ -53,7 +53,7 @@ export default function SolvedacProblemFields({
       setMessage({
         ok: unknown.length === 0,
         text:
-          `${problem.boj_problem_id}. ${problem.title} · ${tierName(problem.tier)} · 태그 ${known.length}개를 채웠습니다.` +
+          `BOJ ${problem.boj_problem_id} ${problem.title} · ${tierName(problem.tier)} · 태그 ${known.length}개를 채웠습니다.` +
           (unknown.length ? ` 태그 목록에 없는 ${unknown.join(", ")}는 뺐습니다. 태그 목록을 받은 뒤 다시 가져오세요.` : ""),
       });
     } catch (error) {

@@ -4,7 +4,7 @@ import ProblemContent from "@/components/ProblemContent";
 import { formatSeconds } from "@/lib/format";
 import type { Problem, TestCase } from "@/lib/types";
 
-/** 문제 한 개: 번호와 제목, 난이도와 제한 꼬리표, 본문, 입출력 설명, 예제. */
+/** 문제 한 개: 번호, 제목, 난이도와 제한 꼬리표, 본문, 입출력 설명, 예제. */
 export default function ProblemSheet({
   problem,
   examples,
@@ -19,9 +19,9 @@ export default function ProblemSheet({
 }) {
   return (
     <article>
-      <h1 className="text-[22px] leading-snug font-semibold">
-        <span className="tabular-nums">{number ?? problem.id}.</span> {problem.title}
-      </h1>
+      {/* 번호는 제목에 붙이지 않고 위에 따로 적는다. 대회에서는 "A번"처럼 순서 글자가 온다. */}
+      <p className="text-sm font-medium text-muted tabular-nums">{number ?? problem.id}번</p>
+      <h1 className="mt-0.5 text-[22px] leading-snug font-semibold">{problem.title}</h1>
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <ProblemLevel tier={problem.solvedac_tier} difficulty={problem.difficulty} chip />
         <span className="chip">

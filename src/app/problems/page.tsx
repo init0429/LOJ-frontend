@@ -147,6 +147,7 @@ export default function ProblemsPage() {
               <thead>
                 <tr>
                   <th className="w-12 pr-0!">상태</th>
+                  <th className="w-14">번호</th>
                   <th>제목</th>
                   <th className="num hidden w-28 sm:table-cell">정답률</th>
                   <th className="w-24 sm:w-32">난이도</th>
@@ -163,9 +164,10 @@ export default function ProblemsPage() {
                         </>
                       )}
                     </td>
+                    <td className="text-muted tabular-nums">{problem.id}</td>
                     <td>
                       <Link href={`/problems/${problem.id}`} className="font-medium hover:text-accent after:absolute after:inset-0">
-                        <span className="tabular-nums">{problem.id}.</span> {problem.title}
+                        {problem.title}
                       </Link>
                     </td>
                     <td className="num hidden text-muted sm:table-cell">

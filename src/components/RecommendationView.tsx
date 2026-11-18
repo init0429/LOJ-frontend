@@ -50,9 +50,10 @@ export default function RecommendationView({
             {result.loj.map((problem) => (
               <li key={problem.id} className="box flex flex-col gap-2 px-4 py-3">
                 <Link href={`/problems/${problem.id}`} className="font-medium hover:text-accent">
-                  <span className="tabular-nums">{problem.id}.</span> {problem.title}
+                  {problem.title}
                 </Link>
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <span className="text-xs text-muted tabular-nums">{problem.id}번</span>
                   <ProblemLevel tier={problem.tier} difficulty={problem.difficulty} />
                   <SpoilerTags tags={problem.tags} />
                 </div>

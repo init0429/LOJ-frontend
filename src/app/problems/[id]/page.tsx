@@ -229,7 +229,7 @@ function ProblemWorkspaceContent() {
   );
 
   useEffect(() => {
-    if (problem) document.title = `${problem.id}. ${problem.title} · LOJ`;
+    if (problem) document.title = `${problem.title} · LOJ`;
   }, [problem]);
 
   if (loadError) {
