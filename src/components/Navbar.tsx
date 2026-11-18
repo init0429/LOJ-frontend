@@ -86,9 +86,14 @@ export default function Navbar() {
           <ThemeToggle />
           {session ? (
             <>
-              <span className="max-w-40 truncate text-sm">
+              <Link
+                href="/settings"
+                title="설정"
+                aria-current={pathname === "/settings" ? "page" : undefined}
+                className="max-w-40 truncate text-sm hover:underline"
+              >
                 {username ?? session.user.email?.split("@")[0]}
-              </span>
+              </Link>
               <button type="button" onClick={() => void supabase.auth.signOut()} className="btn btn-sm btn-line">
                 로그아웃
               </button>
