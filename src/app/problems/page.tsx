@@ -33,15 +33,15 @@ export default function ProblemsPage() {
         data: { session },
       } = await supabase.auth.getSession();
 
-      const [problemsRes, submissionsRes] = await Promise.all([
+      const [problemsRes, statsRes] = await Promise.all([
         supabase
           .from("problems")
           .select("id, title, time_limit_ms, memory_limit_mb, difficulty")
           .order("id", { ascending: true }),
-        // 정답률은 전체 유저 기준 통계라 user_id로 안 거름.
-        // 제출은 1000건을 금방 넘기므로 페이지를 나눠 전부 읽는다.
-        fetchAllRows<{ problem_id: number; status: string }>((from, to) =>
-          supabase.from("submissions").select("problem_id, status").order("id").range(from, to),
+        // 정답률은 전체 사용자 기준이다. 남의 제출은 RLS로 읽을 수 없으므로 DB 함수가
+        // 문제별 개수만 세어 준다(backend/migrations/20261118_row_level_security.sql).
+        fetchAllRows<{ problem_id: number; submissions: number; accepted: number }>((from, to) =>
+          supabase.rpc("problem_stats").order("problem_id").range(from, to),
         ),
       ]);
 
@@ -52,20 +52,14 @@ export default function ProblemsPage() {
         setProblems(problemsRes.data || []);
       }
 
-      if (submissionsRes.error) {
-        console.error("정답률 로딩 에러:", submissionsRes.error);
+      if (statsRes.error) {
+        // 정답률 칸만 비고 목록은 그대로 보여 준다.
+        console.error("정답률 로딩 에러:", statsRes.error);
       } else {
-        const newStats: Record<number, { total: number; accepted: number }> =
-          {};
-        submissionsRes.data.forEach((sub) => {
-          if (!newStats[sub.problem_id]) {
-            newStats[sub.problem_id] = { total: 0, accepted: 0 };
-          }
-          newStats[sub.problem_id].total += 1;
-          if (sub.status === "Accepted") {
-            newStats[sub.problem_id].accepted += 1;
-          }
-        });
+        const newStats: Record<number, { total: number; accepted: number }> = {};
+        for (const row of statsRes.data) {
+          newStats[row.problem_id] = { total: Number(row.submissions), accepted: Number(row.accepted) };
+        }
         setStats(newStats);
       }
 
