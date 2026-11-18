@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
 import Link from "next/link";
-import { ArrowUpRight, Eye, EyeOff, RefreshCw } from "lucide-react";
+import { ArrowUpRight, RefreshCw } from "lucide-react";
 import ProblemLevel from "@/components/ProblemLevel";
+import SpoilerTags from "@/components/SpoilerTags";
 import TierBadge from "@/components/TierBadge";
 import { formatDateTime } from "@/lib/format";
-import type { NamedTag, Recommendations } from "@/lib/recommend-api";
+import type { Recommendations } from "@/lib/recommend-api";
 import { tierName } from "@/lib/solvedac-tier";
 
 /** 추천 결과 한 벌: 기준, 약한 유형, LOJ 문제, 백준 문제 */
@@ -28,7 +28,7 @@ export default function RecommendationView({
       {!basis.linked && (
         <div className="box mt-6 flex flex-wrap items-center justify-between gap-3 px-4 py-3">
           <p className="text-sm">solved.ac를 연결하면 백준에서 푼 기록까지 보고 맞춤 추천을 받을 수 있어요.</p>
-          <Link href="/settings" className="btn btn-sm btn-line">solved.ac 연결</Link>
+          <Link href="/settings/solvedac" className="btn btn-sm btn-line">solved.ac 연결</Link>
         </div>
       )}
 
@@ -107,24 +107,4 @@ function basisText({ basis, starter }: Recommendations): string {
   if (basis.source === "loj") return `LOJ에서 푼 문제로 어림한 ${tierName(basis.tier)} 기준`;
   if (starter) return "아직 푼 문제가 없어서 쉬운 문제부터 골랐습니다.";
   return "LOJ 제출 기록 기준";
-}
-
-/** 문제의 태그는 풀이 힌트가 되므로 눌러야 보인다. */
-function SpoilerTags({ tags }: { tags: NamedTag[] }) {
-  const [open, setOpen] = useState(false);
-  if (tags.length === 0) return null;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      <button
-        type="button"
-        onClick={() => setOpen((value) => !value)}
-        aria-expanded={open}
-        className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs text-muted hover:bg-fill hover:text-fg"
-      >
-        {open ? <EyeOff size={13} aria-hidden="true" /> : <Eye size={13} aria-hidden="true" />}
-        {open ? "태그 숨기기" : "태그 보기"}
-      </button>
-      {open && tags.map((tag) => <span key={tag.key} className="chip h-6 px-2">{tag.name}</span>)}
-    </div>
-  );
 }

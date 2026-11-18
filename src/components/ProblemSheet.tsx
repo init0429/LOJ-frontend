@@ -1,21 +1,25 @@
 import { CircleCheck, Clock, MemoryStick } from "lucide-react";
 import ProblemLevel from "@/components/ProblemLevel";
 import ProblemContent from "@/components/ProblemContent";
+import ProblemTags from "@/components/ProblemTags";
 import { formatSeconds } from "@/lib/format";
 import type { Problem, TestCase } from "@/lib/types";
 
-/** 문제 한 개: 번호, 제목, 난이도와 제한 꼬리표, 본문, 입출력 설명, 예제. */
+/** 문제 한 개: 번호, 제목, 난이도와 제한 꼬리표, 본문, 입출력 설명, 예제, (원하면) 알고리즘 분류. */
 export default function ProblemSheet({
   problem,
   examples,
   number,
   solved = false,
+  withTags = false,
 }: {
   problem: Problem;
   examples: TestCase[];
   /** 번호 자리에 보여 줄 값. 생략하면 문제 번호. */
   number?: number | string;
   solved?: boolean;
+  /** 맨 아래에 알고리즘 분류를 붙인다. 대회 중에는 힌트가 되므로 넘기지 않는다. */
+  withTags?: boolean;
 }) {
   return (
     <article>
@@ -71,6 +75,8 @@ export default function ProblemSheet({
           </dl>
         </section>
       ))}
+
+      {withTags && <ProblemTags problemId={problem.id} />}
     </article>
   );
 }

@@ -90,7 +90,7 @@ export default function Navbar() {
               <Link
                 href="/settings"
                 title="설정"
-                aria-current={pathname === "/settings" ? "page" : undefined}
+                aria-current={pathname.startsWith("/settings") ? "page" : undefined}
                 className="max-w-40 truncate text-sm hover:underline"
               >
                 {username ?? session.user.email?.split("@")[0]}

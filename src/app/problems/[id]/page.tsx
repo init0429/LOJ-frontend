@@ -300,6 +300,7 @@ function ProblemWorkspaceContent() {
                   problem={problem}
                   examples={testCases}
                   solved={solvedBefore || justSolved}
+                  withTags
                 />
               )}
 

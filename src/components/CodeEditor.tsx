@@ -1,6 +1,7 @@
 "use client";
 
 import Editor, { type BeforeMount, type OnMount } from "@monaco-editor/react";
+import { usePreferences } from "@/hooks/usePreferences";
 import { useTheme } from "@/hooks/useTheme";
 import { codeFontFamily } from "@/lib/fonts";
 import { MONACO_LANGUAGE } from "@/lib/languages";
@@ -45,16 +46,19 @@ export default function CodeEditor({
   onChange,
   readOnly = false,
   height = "100%",
-  fontSize = 14,
+  fontSize,
 }: {
   language: string;
   value: string;
   onChange?: (value: string) => void;
   readOnly?: boolean;
   height?: string;
+  /** 생략하면 설정 화면에서 고른 크기 */
   fontSize?: number;
 }) {
   const { theme } = useTheme();
+  const [preferences] = usePreferences();
+  const autoClose = preferences.editorAutoClose ? "languageDefined" : "never";
   return (
     <Editor
       height={height}
@@ -68,13 +72,18 @@ export default function CodeEditor({
       options={{
         readOnly,
         minimap: { enabled: false },
-        fontSize,
+        fontSize: fontSize ?? preferences.editorFontSize,
         fontFamily: codeFontFamily,
         lineHeight: 1.7,
         padding: { top: 12, bottom: 12 },
         scrollBeyondLastLine: false,
         automaticLayout: true,
-        tabSize: 4,
+        tabSize: preferences.editorTabSize,
+        // 코드 내용으로 들여쓰기 폭을 짐작하지 않고 설정한 값을 쓴다.
+        detectIndentation: false,
+        wordWrap: preferences.editorWordWrap ? "on" : "off",
+        autoClosingBrackets: autoClose,
+        autoClosingQuotes: autoClose,
         renderLineHighlight: readOnly ? "none" : "line",
         overviewRulerLanes: 0,
         scrollbar: { verticalScrollbarSize: 10, horizontalScrollbarSize: 10 },
