@@ -74,3 +74,29 @@ test("admins look up BOJ problems and sync tags through the backend", async () =
   assert.equal(sync.calls[0][0], "https://loj.example/api/integrations/solvedac/tags/sync");
   assert.equal(sync.calls[0][1].method, "POST");
 });
+
+test("recommendations are read with the login token", async () => {
+  const calls = [];
+  const body = { basis: { source: null, tier: null, linked: false, handle: null, synced_at: null }, starter: true, weak_tags: [], loj: [], boj: [] };
+  const api = load("recommend-api.ts", {
+    require: () => ({ supabase: { auth: { getSession: async () => ({ data: { session: { access_token: "t" } }, error: null }) } } }),
+    process: { env: { NEXT_PUBLIC_API_URL: "https://loj.example/api/" } },
+    fetch: async (...args) => {
+      calls.push(args);
+      return { ok: true, status: 200, json: async () => body };
+    },
+  });
+  const result = await api.getRecommendations();
+  assert.equal(result.starter, true);
+  assert.equal(calls[0][0], "https://loj.example/api/recommendations");
+  assert.equal(calls[0][1].headers.Authorization, "Bearer t");
+});
+
+test("a broken recommendation response is reported", async () => {
+  const api = load("recommend-api.ts", {
+    require: () => ({ supabase: { auth: { getSession: async () => ({ data: { session: { access_token: "t" } }, error: null }) } } }),
+    process: { env: {} },
+    fetch: async () => ({ ok: true, status: 200, json: async () => ({}) }),
+  });
+  await assert.rejects(api.getRecommendations(), { message: "추천 결과를 받지 못했습니다." });
+});

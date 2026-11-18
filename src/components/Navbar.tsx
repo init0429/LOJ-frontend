@@ -10,6 +10,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 
 const NAV_ITEMS = [
   { href: "/problems", label: "문제" },
+  { href: "/recommend", label: "추천" },
   { href: "/contests", label: "대회" },
   { href: "/leaderboard", label: "순위" },
 ];
