@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
+import { Code, CloudUpload, FileText, Play, SquareCheck, Terminal, Timer } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { useSubmissionFeedback, useSubmissionState } from "@/hooks/useSubmissionState";
 import CodeEditor from "@/components/CodeEditor";
@@ -332,13 +333,13 @@ export default function ContestWorkspace() {
   const busy = isTesting || isSubmitting;
 
   return (
-    <div className="flex min-h-dvh flex-col lg:h-dvh lg:overflow-hidden">
-      <header className="flex flex-none flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-line bg-surface px-4 py-2">
-        <div className="flex min-w-0 items-center gap-4">
-          <Logo className="text-lg" />
+    <div className="flex min-h-dvh flex-col bg-workspace lg:h-dvh lg:overflow-hidden">
+      <header className="flex flex-none flex-wrap items-center justify-between gap-x-6 gap-y-2 px-3 py-1.5">
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="px-1 text-lg"><Logo /></span>
           <p className="truncate font-semibold">{contest.title}</p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <span role="status" className="text-sm text-muted">
             {saveState === "error" ? (
               <button className="text-link" onClick={() => { setSaveState("saving"); setSaveAttempt((value) => value + 1); }}>
@@ -346,9 +347,10 @@ export default function ContestWorkspace() {
               </button>
             ) : saveState === "saving" ? "저장하는 중" : saveState === "saved" ? "저장됨" : ""}
           </span>
-          <p className="flex items-baseline gap-2">
-            <span className="text-sm text-muted">남은 시간</span>
-            <span role="timer" className="font-semibold tabular-nums">
+          <p className="chip h-8 gap-2 px-3 text-sm">
+            <Timer size={15} aria-hidden="true" />
+            <span className="sr-only">남은 시간</span>
+            <span role="timer" className="font-semibold text-fg tabular-nums">
               {formatCountdown(new Date(contest.end_time).getTime() - now)}
             </span>
           </p>
@@ -357,7 +359,7 @@ export default function ContestWorkspace() {
       </header>
 
       {problems.length > 1 && (
-        <nav aria-label="대회 문제" className="flex flex-none gap-1 overflow-x-auto border-b border-line bg-surface px-3">
+        <nav aria-label="대회 문제" className="flex flex-none gap-1 overflow-x-auto px-2 pb-2">
           {problems.map((p, i) => (
             <button
               key={p.id}
@@ -365,7 +367,7 @@ export default function ContestWorkspace() {
               aria-pressed={i === activeIdx}
               title={dirty ? "코드가 저장된 뒤에 다른 문제로 넘어갈 수 있습니다." : undefined}
               onClick={() => setActiveIdx(i)}
-              className="tab max-w-[16em] gap-1.5"
+              className="chip max-w-[16em] gap-1.5"
             >
               <span className="font-semibold"><ProblemNumber id={letter(i)} solved={solvedIds.has(p.id)} /></span>
               <span className="truncate">{p.title}</span>
@@ -377,21 +379,45 @@ export default function ContestWorkspace() {
       {problems.length === 0 ? (
         <p className="notice page">이 대회에는 아직 문제가 없습니다.</p>
       ) : (
-        <div className="grid flex-1 gap-2 p-2 lg:min-h-0 lg:grid-cols-2">
-          <div className="box overflow-y-auto p-6 sm:p-8">
-            {currentProblem && (
-              <ProblemSheet
-                problem={currentProblem}
-                examples={testCases}
-                number={letter(activeIdx)}
-                solved={solvedIds.has(currentProblem.id) || justSolved}
-              />
-            )}
+        <div className="grid flex-1 gap-2 px-2 pb-2 lg:min-h-0 lg:grid-cols-2">
+          <div className="box flex flex-col overflow-hidden">
+            <div className="panel-head">
+              <p className="flex items-center gap-1.5 px-2 text-[13px] font-semibold">
+                <FileText size={14} className="text-accent" aria-hidden="true" />
+                문제
+              </p>
+            </div>
+            <div className="flex-1 overflow-y-auto px-5 py-5">
+              {currentProblem && (
+                <ProblemSheet
+                  problem={currentProblem}
+                  examples={testCases}
+                  number={letter(activeIdx)}
+                  solved={solvedIds.has(currentProblem.id) || justSolved}
+                />
+              )}
+            </div>
           </div>
 
           <div className="flex min-h-[80dvh] flex-col gap-2 lg:min-h-0">
             <div className="box flex min-h-0 flex-[3] flex-col overflow-hidden">
-              <div className="flex flex-none flex-wrap items-center justify-between gap-2 border-b border-line px-3 py-2">
+              <div className="panel-head justify-between">
+                <p className="flex items-center gap-1.5 px-2 text-[13px] font-semibold">
+                  <Code size={14} className="text-ok" aria-hidden="true" />
+                  코드
+                </p>
+                <div className="btn-group">
+                  <button onClick={handleTest} disabled={busy || !draftReady} className="btn btn-sm btn-line">
+                    <Play size={13} fill="currentColor" aria-hidden="true" />
+                    {isTesting ? "실행하는 중" : "예제 실행"}
+                  </button>
+                  <button onClick={handleSubmit} disabled={busy || judging || !draftReady} className="btn btn-sm btn-submit">
+                    <CloudUpload size={15} aria-hidden="true" />
+                    {isSubmitting ? "제출하는 중" : judging ? "채점하는 중" : "제출"}
+                  </button>
+                </div>
+              </div>
+              <div className="flex-none border-b border-line px-1.5 py-1">
                 <LanguageSelect
                   value={language}
                   disabled={!draftReady}
@@ -402,14 +428,6 @@ export default function ContestWorkspace() {
                     setSaveState("saving");
                   }}
                 />
-                <div className="flex gap-2">
-                  <button onClick={handleTest} disabled={busy || !draftReady} className="btn btn-sm btn-line">
-                    {isTesting ? "실행하는 중" : "예제 실행"}
-                  </button>
-                  <button onClick={handleSubmit} disabled={busy || judging || !draftReady} className="btn btn-sm btn-fill">
-                    {isSubmitting ? "제출하는 중" : judging ? "채점하는 중" : "제출"}
-                  </button>
-                </div>
               </div>
               <div className="min-h-0 flex-1">
                 <CodeEditor language={language} value={code} onChange={updateCode} readOnly={!draftReady} />
@@ -417,11 +435,18 @@ export default function ContestWorkspace() {
             </div>
 
             <div className="box flex min-h-0 flex-[2] flex-col overflow-hidden">
-              <div role="group" aria-label="결과 보기" className="flex flex-none gap-1 border-b border-line px-3 py-1.5">
-                <button className="tab tab-sm" aria-pressed={activeConsoleTab === "run"} onClick={() => setActiveConsoleTab("run")}>실행 결과</button>
-                <button className="tab tab-sm" aria-pressed={activeConsoleTab === "submission"} onClick={() => setActiveConsoleTab("submission")}>채점 결과</button>
+              <div role="group" aria-label="결과 보기" className="panel-head">
+                <button className="panel-tab" aria-pressed={activeConsoleTab === "run"} onClick={() => setActiveConsoleTab("run")}>
+                  <SquareCheck size={14} className="text-ok" aria-hidden="true" />
+                  실행 결과
+                </button>
+                <span className="panel-tab-gap" aria-hidden="true" />
+                <button className="panel-tab" aria-pressed={activeConsoleTab === "submission"} onClick={() => setActiveConsoleTab("submission")}>
+                  <Terminal size={14} className="text-ok" aria-hidden="true" />
+                  채점 결과
+                </button>
               </div>
-              <div className="flex-1 overflow-auto p-5">
+              <div className="flex-1 overflow-auto px-5 py-4">
                 {activeConsoleTab === "run" && (
                   <TestRunResult running={isTesting} result={testResult} error={testError} />
                 )}

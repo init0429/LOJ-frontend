@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
+import { Code, CloudUpload, FileText, History, List, Play, SquareCheck, Terminal } from "lucide-react";
 import {
   Panel,
   Group as PanelGroup,
@@ -13,6 +13,7 @@ import { supabase } from "@/lib/supabase";
 import { useSubmissionFeedback, useSubmissionState } from "@/hooks/useSubmissionState";
 import CodeEditor from "@/components/CodeEditor";
 import LanguageSelect from "@/components/LanguageSelect";
+import Logo from "@/components/Logo";
 import ProblemSheet from "@/components/ProblemSheet";
 import SubmissionResult from "@/components/SubmissionResult";
 import TestRunResult from "@/components/TestRunResult";
@@ -201,26 +202,29 @@ function ProblemWorkspaceContent() {
   const busy = isTesting || isSubmitting;
 
   return (
-    <div className="problem-workspace flex h-dvh flex-col overflow-hidden" data-mobile-pane={mobilePane}>
-      <header className="flex flex-none flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-line bg-surface px-3 py-2">
-        <div className="flex min-w-0 items-center gap-3">
-          <Link href="/problems" className="btn btn-sm btn-line pl-2.5">
-            <ChevronLeft size={16} aria-hidden="true" />
+    <div className="problem-workspace flex h-dvh flex-col overflow-hidden bg-workspace" data-mobile-pane={mobilePane}>
+      <header className="relative flex flex-none flex-wrap items-center justify-between gap-x-4 gap-y-2 px-3 py-1.5">
+        <div className="flex min-w-0 items-center gap-2">
+          <Link href="/problems" className="px-1 text-lg" aria-label="LOJ 문제 목록">
+            <Logo />
+          </Link>
+          <Link href="/problems" className="btn btn-sm gap-1.5 px-2 font-medium text-muted hover:bg-fill hover:text-fg">
+            <List size={16} aria-hidden="true" />
             문제 목록
           </Link>
-          <p className="truncate font-semibold">
-            <span className="mr-2 tabular-nums text-muted">{problem.id}</span>
-            {problem.title}
-          </p>
         </div>
-        <div className="flex items-center gap-2">
-          <ThemeToggle />
+        <div className="btn-group md:absolute md:left-1/2 md:-translate-x-1/2">
           <button onClick={handleTest} disabled={busy || !code.trim()} className="btn btn-sm btn-line">
+            <Play size={13} fill="currentColor" aria-hidden="true" />
             {isTesting ? "실행하는 중" : "예제 실행"}
           </button>
-          <button onClick={handleSubmit} disabled={busy || judging || !code.trim()} className="btn btn-sm btn-fill">
+          <button onClick={handleSubmit} disabled={busy || judging || !code.trim()} className="btn btn-sm btn-submit">
+            <CloudUpload size={15} aria-hidden="true" />
             {isSubmitting ? "제출하는 중" : judging ? "채점하는 중" : "제출"}
           </button>
+        </div>
+        <div className="flex items-center gap-1">
+          <ThemeToggle />
         </div>
       </header>
 
@@ -229,15 +233,22 @@ function ProblemWorkspaceContent() {
         <button className="tab" aria-pressed={mobilePane === "code"} onClick={() => setMobilePane("code")}>코드와 결과</button>
       </div>
 
-      <div className="flex flex-1 overflow-hidden p-2">
+      <div className="flex flex-1 overflow-hidden px-2 pb-2">
         <PanelGroup orientation="horizontal" className="workspace-panels h-full w-full overflow-hidden">
           <Panel defaultSize="46%" minSize="25%" className="workspace-description box flex flex-col overflow-hidden">
-            <div role="group" aria-label="문제지 보기" className="flex flex-none gap-1 border-b border-line px-3 py-1.5">
-              <button className="tab tab-sm" aria-pressed={activeLeftTab === "description"} onClick={() => setActiveLeftTab("description")}>문제</button>
-              <button className="tab tab-sm" aria-pressed={activeLeftTab === "history"} onClick={() => setActiveLeftTab("history")}>내 제출</button>
+            <div role="group" aria-label="문제지 보기" className="panel-head">
+              <button className="panel-tab" aria-pressed={activeLeftTab === "description"} onClick={() => setActiveLeftTab("description")}>
+                <FileText size={14} className="text-accent" aria-hidden="true" />
+                문제
+              </button>
+              <span className="panel-tab-gap" aria-hidden="true" />
+              <button className="panel-tab" aria-pressed={activeLeftTab === "history"} onClick={() => setActiveLeftTab("history")}>
+                <History size={14} className="text-accent" aria-hidden="true" />
+                내 제출
+              </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-6 sm:p-8">
+            <div className="flex-1 overflow-y-auto px-5 py-5">
               {activeLeftTab === "description" && (
                 <ProblemSheet
                   problem={problem}
@@ -256,7 +267,7 @@ function ProblemWorkspaceContent() {
                   ) : history.length === 0 ? (
                     <p className="notice mt-4">아직 제출한 적이 없습니다. 코드를 쓰고 ‘제출’을 눌러 보세요.</p>
                   ) : (
-                    <table className="sheet-table mt-4">
+                    <table className="sheet-table mt-3">
                       <thead>
                         <tr>
                           <th>결과</th>
@@ -285,7 +296,13 @@ function ProblemWorkspaceContent() {
           <Panel defaultSize="54%" minSize="30%" className="workspace-code">
             <PanelGroup orientation="vertical">
               <Panel defaultSize="64%" minSize="25%" className="box flex flex-col overflow-hidden">
-                <div className="flex-none border-b border-line px-3 py-2">
+                <div className="panel-head">
+                  <p className="flex items-center gap-1.5 px-2 text-[13px] font-semibold">
+                    <Code size={14} className="text-ok" aria-hidden="true" />
+                    코드
+                  </p>
+                </div>
+                <div className="flex-none border-b border-line px-1.5 py-1">
                   <LanguageSelect value={language} onChange={handleLanguageChange} />
                 </div>
                 <div className="min-h-0 flex-1">
@@ -296,11 +313,18 @@ function ProblemWorkspaceContent() {
               <PanelResizeHandle className="workspace-divider workspace-divider-row" />
 
               <Panel defaultSize="36%" minSize="20%" className="box flex flex-col overflow-hidden">
-                <div role="group" aria-label="결과 보기" className="flex flex-none gap-1 border-b border-line px-3 py-1.5">
-                  <button className="tab tab-sm" aria-pressed={activeConsoleTab === "run"} onClick={() => setActiveConsoleTab("run")}>실행 결과</button>
-                  <button className="tab tab-sm" aria-pressed={activeConsoleTab === "submission"} onClick={() => setActiveConsoleTab("submission")}>채점 결과</button>
+                <div role="group" aria-label="결과 보기" className="panel-head">
+                  <button className="panel-tab" aria-pressed={activeConsoleTab === "run"} onClick={() => setActiveConsoleTab("run")}>
+                    <SquareCheck size={14} className="text-ok" aria-hidden="true" />
+                    실행 결과
+                  </button>
+                  <span className="panel-tab-gap" aria-hidden="true" />
+                  <button className="panel-tab" aria-pressed={activeConsoleTab === "submission"} onClick={() => setActiveConsoleTab("submission")}>
+                    <Terminal size={14} className="text-ok" aria-hidden="true" />
+                    채점 결과
+                  </button>
                 </div>
-                <div className="flex-1 overflow-auto p-5">
+                <div className="flex-1 overflow-auto px-5 py-4">
                   {activeConsoleTab === "run" && (
                     <TestRunResult running={isTesting} result={testResult} error={testError} />
                   )}

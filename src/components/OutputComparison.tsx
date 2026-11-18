@@ -33,31 +33,29 @@ export default function OutputComparison({
     : LIMIT_HINTS[actual.trim()] ?? STATUS_HINTS[status] ?? "";
 
   return (
-    <div className="@container">
+    <div className="space-y-3">
       {hint && <p className="text-sm notice-error">{hint}</p>}
-      <Field label="입력" className={hint ? "mt-3" : ""}>
+      <Field label="입력">
         <Plain text={input} empty="(입력 없음)" />
       </Field>
-      <div className="mt-3 grid gap-3 @lg:grid-cols-2">
-        <Field label="내 출력">
-          {wrong ? (
-            <Lines lines={diff.actual} empty="(출력 없음)" />
-          ) : (
-            <Plain text={actual} empty={status === "Time Limit Exceeded" ? "(시간 초과로 출력 없음)" : "(출력 없음)"} />
-          )}
-        </Field>
-        <Field label="기대한 출력">
-          {wrong ? <Lines lines={diff.expected} empty="(출력 없음)" /> : <Plain text={expected} empty="(출력 없음)" />}
-        </Field>
-      </div>
+      <Field label="내 출력">
+        {wrong ? (
+          <Lines lines={diff.actual} empty="(출력 없음)" />
+        ) : (
+          <Plain text={actual} empty={status === "Time Limit Exceeded" ? "(시간 초과로 출력 없음)" : "(출력 없음)"} />
+        )}
+      </Field>
+      <Field label="기대한 출력">
+        {wrong ? <Lines lines={diff.expected} empty="(출력 없음)" /> : <Plain text={expected} empty="(출력 없음)" />}
+      </Field>
     </div>
   );
 }
 
-function Field({ label, className = "", children }: { label: string; className?: string; children: ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className={`min-w-0 ${className}`}>
-      <p className="text-sm text-muted">{label}</p>
+    <div className="min-w-0">
+      <p className="text-xs font-medium text-muted">{label}</p>
       {children}
     </div>
   );

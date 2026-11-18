@@ -212,7 +212,7 @@ export default function AdminProblemsPage() {
                   숨김
                 </label>
                 {testCases.length > 1 && (
-                  <button type="button" onClick={() => removeTestCase(idx)} aria-label={`${idx + 1}번 테스트케이스 삭제`} title="삭제" className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-fg">
+                  <button type="button" onClick={() => removeTestCase(idx)} aria-label={`${idx + 1}번 테스트케이스 삭제`} title="삭제" className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-fill hover:text-fg">
                     <Trash2 size={16} aria-hidden="true" />
                   </button>
                 )}

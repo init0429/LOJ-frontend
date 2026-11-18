@@ -5,7 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { fetchAllRows } from "@/lib/fetch-all";
 import Difficulty from "@/components/Difficulty";
-import ProblemNumber from "@/components/ProblemNumber";
+import { CircleCheck, Search } from "lucide-react";
 
 interface Problem {
   id: number;
@@ -95,31 +95,41 @@ export default function ProblemsPage() {
     (p) => !query || p.title.toLowerCase().includes(query) || String(p.id).includes(query),
   );
 
+  const solvedCount = problems.filter((problem) => solvedIds.has(problem.id)).length;
+
   return (
     <div className="page">
-      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-5">
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
         <div>
           <h1 className="page-title">문제</h1>
+          {!loading && !loadError && problems.length > 0 && (
+            <p className="page-lead text-sm tabular-nums">
+              {problems.length}문제{solvedIds.size > 0 && ` · ${solvedCount}문제 해결`}
+            </p>
+          )}
         </div>
-        <input
-          type="search"
-          aria-label="문제 번호나 제목으로 찾기"
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          placeholder="번호나 제목으로 찾기"
-          className="input w-full sm:w-72"
-        />
+        <label className="relative block w-full sm:w-72">
+          <span className="sr-only">문제 번호나 제목으로 찾기</span>
+          <Search size={15} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted" />
+          <input
+            type="search"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="번호나 제목으로 찾기"
+            className="input pl-9"
+          />
+        </label>
       </div>
 
-      <div className="box mt-8 overflow-hidden">
+      <div className="mt-6">
         {loading ? (
-          <p role="status" className="notice p-8">문제를 불러오는 중…</p>
+          <p role="status" className="notice py-8">문제를 불러오는 중…</p>
         ) : loadError ? (
-          <p role="alert" className="notice-error p-8">
+          <p role="alert" className="notice-error py-8">
             문제 목록을 불러오지 못했습니다. 새로고침해 주세요.
           </p>
         ) : filteredProblems.length === 0 ? (
-          <p className="notice p-8">
+          <p className="notice py-8">
             {query
               ? `"${searchQuery.trim()}"에 맞는 문제가 없습니다. 번호나 제목을 다시 확인해 주세요.`
               : "아직 등록된 문제가 없습니다."}
@@ -129,28 +139,33 @@ export default function ProblemsPage() {
             <table className="sheet-table">
               <thead>
                 <tr>
-                  <th className="w-14 sm:w-20">번호</th>
+                  <th className="w-12 pr-0!">상태</th>
                   <th>제목</th>
-                  <th className="w-28 sm:w-40">난이도</th>
                   <th className="num hidden w-28 sm:table-cell">정답률</th>
+                  <th className="w-24 sm:w-32">난이도</th>
                 </tr>
               </thead>
               <tbody>
                 {filteredProblems.map((problem) => (
                   <tr key={problem.id} className="row-link relative">
-                    <td className="py-2!">
-                      <ProblemNumber id={problem.id} solved={solvedIds.has(problem.id)} />
+                    <td className="pr-0!">
+                      {solvedIds.has(problem.id) && (
+                        <>
+                          <CircleCheck size={17} className="text-ok" aria-hidden="true" />
+                          <span className="sr-only">맞힌 문제</span>
+                        </>
+                      )}
                     </td>
                     <td>
-                      <Link href={`/problems/${problem.id}`} className="text-link after:absolute after:inset-0">
-                        {problem.title}
+                      <Link href={`/problems/${problem.id}`} className="font-medium hover:text-accent after:absolute after:inset-0">
+                        <span className="tabular-nums">{problem.id}.</span> {problem.title}
                       </Link>
-                    </td>
-                    <td>
-                      <Difficulty value={problem.difficulty} />
                     </td>
                     <td className="num hidden text-muted sm:table-cell">
                       {acceptance(problem.id) ?? <span aria-label="제출 없음">–</span>}
+                    </td>
+                    <td>
+                      <Difficulty value={problem.difficulty} />
                     </td>
                   </tr>
                 ))}

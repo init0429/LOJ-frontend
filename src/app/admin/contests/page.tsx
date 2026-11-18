@@ -170,7 +170,7 @@ export default function AdminContestsPage() {
                     type="button"
                     aria-pressed={selected}
                     onClick={() => toggleProblem(p.id)}
-                    className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm ${selected ? "bg-subtle" : "hover:bg-subtle"}`}
+                    className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm ${selected ? "bg-fill" : "hover:bg-fill"}`}
                   >
                     <input type="checkbox" readOnly tabIndex={-1} checked={selected} className="h-4 w-4 accent-(--accent)" aria-hidden="true" />
                     <span className="w-5 flex-none font-semibold">{selected ? letter(order) : ""}</span>

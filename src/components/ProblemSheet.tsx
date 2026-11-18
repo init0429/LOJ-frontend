@@ -1,10 +1,10 @@
+import { CircleCheck, Clock, MemoryStick } from "lucide-react";
 import Difficulty from "@/components/Difficulty";
 import ProblemContent from "@/components/ProblemContent";
-import ProblemNumber from "@/components/ProblemNumber";
 import { formatSeconds } from "@/lib/format";
 import type { Problem, TestCase } from "@/lib/types";
 
-/** 문제 한 개: 번호와 제목, 제한, 본문, 입출력 설명, 예제. */
+/** 문제 한 개: 번호와 제목, 난이도와 제한 꼬리표, 본문, 입출력 설명, 예제. */
 export default function ProblemSheet({
   problem,
   examples,
@@ -19,26 +19,26 @@ export default function ProblemSheet({
 }) {
   return (
     <article>
-      <h1 className="page-title">
-        <span className="mr-2 text-muted"><ProblemNumber id={number ?? problem.id} solved={solved} /></span>
-        {problem.title}
+      <h1 className="text-[22px] leading-snug font-semibold">
+        <span className="tabular-nums">{number ?? problem.id}.</span> {problem.title}
       </h1>
-      <table className="mt-3 text-sm">
-        <tbody>
-          <tr>
-            <th className="pr-4 text-left font-normal text-muted">난이도</th>
-            <td><Difficulty value={problem.difficulty} /></td>
-          </tr>
-          <tr>
-            <th className="pr-4 text-left font-normal text-muted">시간 제한</th>
-            <td>{formatSeconds(problem.time_limit_ms)}</td>
-          </tr>
-          <tr>
-            <th className="pr-4 text-left font-normal text-muted">메모리 제한</th>
-            <td>{problem.memory_limit_mb}MB</td>
-          </tr>
-        </tbody>
-      </table>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Difficulty value={problem.difficulty} chip />
+        <span className="chip">
+          <Clock size={12} aria-hidden="true" />
+          시간 {formatSeconds(problem.time_limit_ms)}
+        </span>
+        <span className="chip">
+          <MemoryStick size={12} aria-hidden="true" />
+          메모리 {problem.memory_limit_mb}MB
+        </span>
+        {solved && (
+          <span className="ml-auto inline-flex items-center gap-1 text-sm font-medium text-ok">
+            해결함
+            <CircleCheck size={16} aria-hidden="true" />
+          </span>
+        )}
+      </div>
 
       <ProblemContent content={problem.description} className="mt-6" />
 
@@ -56,23 +56,21 @@ export default function ProblemSheet({
         </section>
       )}
 
-      {examples.length > 0 && (
-        <section className="mt-8">
-          <h2 className="section-title">예제</h2>
-          {examples.map((example, index) => (
-            <div key={example.id} className="mt-3 grid gap-3 sm:grid-cols-2">
-              <figure className="min-w-0">
-                <figcaption className="text-sm text-muted">입력 {index + 1}</figcaption>
-                <pre className="code-box mt-1">{example.input_data}</pre>
-              </figure>
-              <figure className="min-w-0">
-                <figcaption className="text-sm text-muted">출력 {index + 1}</figcaption>
-                <pre className="code-box mt-1">{example.expected_output}</pre>
-              </figure>
-            </div>
-          ))}
+      {examples.map((example, index) => (
+        <section key={example.id} className="mt-8">
+          <h2 className="font-semibold">예제 {index + 1}</h2>
+          <dl className="mt-2 border-l-2 border-line-strong pl-4">
+            <dt className="text-sm font-semibold">입력</dt>
+            <dd>
+              <pre className="mt-1 font-mono text-[13px] leading-relaxed whitespace-pre-wrap text-muted">{example.input_data}</pre>
+            </dd>
+            <dt className="mt-3 text-sm font-semibold">출력</dt>
+            <dd>
+              <pre className="mt-1 font-mono text-[13px] leading-relaxed whitespace-pre-wrap text-muted">{example.expected_output}</pre>
+            </dd>
+          </dl>
         </section>
-      )}
+      ))}
     </article>
   );
 }

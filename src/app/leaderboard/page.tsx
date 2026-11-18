@@ -75,13 +75,13 @@ export default function LeaderboardPage() {
         />
       </div>
 
-      <div className="box mt-8 overflow-hidden">
+      <div className="mt-6">
         {loading ? (
-          <p role="status" className="notice p-8">순위를 불러오는 중…</p>
+          <p role="status" className="notice py-8">순위를 불러오는 중…</p>
         ) : loadError ? (
-          <p role="alert" className="notice-error p-8">순위를 불러오지 못했습니다. 새로고침해 주세요.</p>
+          <p role="alert" className="notice-error py-8">순위를 불러오지 못했습니다. 새로고침해 주세요.</p>
         ) : filtered.length === 0 ? (
-          <p className="notice p-8">
+          <p className="notice py-8">
             {query
               ? `"${searchQuery.trim()}"이 들어간 이름이 없습니다.`
               : "아직 문제를 맞힌 사람이 없습니다. 첫 줄에 이름을 올려 보세요."}

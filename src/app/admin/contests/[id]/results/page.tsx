@@ -273,7 +273,7 @@ export default function ContestResultsPage() {
                 <h2 id="viewer-title" className="section-title truncate">{viewingProblemTitle}</h2>
                 <p className="text-sm text-muted">{viewingUsername}의 제출</p>
               </div>
-              <button onClick={() => setViewing(null)} aria-label="닫기" title="닫기" className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-md text-muted hover:bg-subtle hover:text-fg">
+              <button onClick={() => setViewing(null)} aria-label="닫기" title="닫기" className="inline-flex h-10 w-10 flex-none items-center justify-center rounded-md text-muted hover:bg-fill hover:text-fg">
                 <X size={20} aria-hidden="true" />
               </button>
             </div>

@@ -45,7 +45,7 @@ export default function SubmissionResult({
   return (
     <div>
       <p role="status" className="flex flex-wrap items-baseline gap-x-3">
-        <Verdict status={status} size="lg" />
+        <Verdict status={status} size="xl" />
         {feedback && feedback.total > 0 && status !== "Compile Error" && (
           <span className="text-sm text-muted tabular-nums">
             테스트 {feedback.total}개 중 {feedback.passed}개 통과
@@ -56,15 +56,15 @@ export default function SubmissionResult({
       {compilerMessage && <pre className="code-box mt-3 max-h-64 overflow-auto">{compilerMessage}</pre>}
 
       {failed !== undefined && feedback?.example && (
-        <div className="mt-3">
-          <p className="mb-2 text-sm">
+        <div className="mt-4">
+          <p className="mb-3 text-sm">
             <span className="font-semibold">예제 {failed}</span>에서 {verdictLabel(status)}
           </p>
           <OutputComparison status={status} {...feedback.example} />
         </div>
       )}
       {failed !== undefined && !feedback?.example && (
-        <div className="mt-3 text-sm">
+        <div className="mt-4 text-sm">
           <p>
             <span className="font-semibold">{failed}번째 테스트</span>에서 {verdictLabel(status)}
           </p>
