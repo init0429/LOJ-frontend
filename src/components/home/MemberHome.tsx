@@ -28,13 +28,14 @@ interface RecentSubmission {
   language: string;
   created_at: string;
   mode?: string;
-  problems: { title: string } | null;
 }
 
 interface Overview {
   submissions: MySubmission[];
   recent: RecentSubmission[];
   attempts: ProblemSummary[];
+  /** 최근 제출과 이어서 풀 문제의 제목 */
+  titles: Map<number, string>;
   problemCount: number | null;
   rank: ReturnType<typeof myRank>;
   contests: ContestSummary[];
@@ -81,9 +82,10 @@ export default function MemberHome({ session }: { session: Session }) {
             .order("id")
             .range(from, to),
         ),
+        // 운영 DB에는 submissions → problems 외래 키가 없어 problems(title)로 이어 읽을 수 없다. 제목은 아래에서 따로 읽는다.
         supabase
           .from("submissions")
-          .select("id, problem_id, status, language, created_at, mode, problems(title)")
+          .select("id, problem_id, status, language, created_at, mode")
           .eq("user_id", userId)
           .order("created_at", { ascending: false })
           .limit(5)
@@ -103,20 +105,23 @@ export default function MemberHome({ session }: { session: Session }) {
       }
 
       const attemptIds = unsolvedAttempts(all.data);
-      let attempts: ProblemSummary[] = [];
-      if (attemptIds.length) {
+      const recentRows = recent.data ?? [];
+      const wanted = [...new Set([...attemptIds, ...recentRows.map((row) => row.problem_id)])];
+      const byId = new Map<number, ProblemSummary>();
+      if (wanted.length) {
         const { data } = await supabase
           .from("problems")
           .select("id, title, difficulty, solvedac_tier")
-          .in("id", attemptIds);
-        const byId = new Map((data ?? []).map((row) => [row.id as number, row as ProblemSummary]));
-        attempts = attemptIds.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : []));
+          .in("id", wanted);
+        for (const row of (data ?? []) as ProblemSummary[]) byId.set(row.id, row);
       }
       if (!active) return;
       setOverview({
         submissions: all.data,
-        recent: recent.data ?? [],
-        attempts,
+        recent: recentRows,
+        // 지워졌거나 아직 공개되지 않은 문제는 이어서 풀 수 없으니 뺀다.
+        attempts: attemptIds.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : [])),
+        titles: new Map([...byId].map(([id, problem]) => [id, problem.title])),
         problemCount: problems.count ?? null,
         rank: board.error ? null : myRank(board.data ?? [], userId),
         contests: contests.data ?? [],
@@ -225,7 +230,7 @@ export default function MemberHome({ session }: { session: Session }) {
                     <Link href={`/problems/${sub.problem_id}`} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-4 py-3 hover:bg-fill">
                       <span className="w-20 flex-none"><Verdict status={sub.status} size="sm" /></span>
                       <span className="min-w-0 flex-1 truncate">
-                        <span className="text-muted tabular-nums">{sub.problem_id}번</span> {sub.problems?.title ?? ""}
+                        <span className="text-muted tabular-nums">{sub.problem_id}번</span> {overview.titles.get(sub.problem_id) ?? ""}
                       </span>
                       <span className="text-sm text-muted">
                         {LANGUAGE_LABELS[sub.language]?.replace(/ \(.*\)$/, "") ?? sub.language}
