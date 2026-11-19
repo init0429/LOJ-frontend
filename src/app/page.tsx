@@ -1,84 +1,33 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { LoaderCircle } from "lucide-react";
+import type { Session } from "@supabase/supabase-js";
+import GuestLanding from "@/components/home/GuestLanding";
+import MemberHome from "@/components/home/MemberHome";
 import { supabase } from "@/lib/supabase";
-import { errorMessage } from "@/lib/errors";
-import { LANGUAGE_LABELS } from "@/lib/languages";
 
-// 로그인할 수 있는 학교 이메일 도메인. Google 로그인 화면에서 이 도메인 계정을 먼저 보여 준다.
-// 실제로 막는 것은 백엔드의 ALLOWED_EMAIL_DOMAINS이므로 두 값을 같게 맞출 것.
-const SCHOOL_DOMAIN = process.env.NEXT_PUBLIC_ALLOWED_EMAIL_DOMAIN?.trim().replace(/^@/, "") || null;
-
+/** 첫 화면. 로그인하지 않았으면 소개 화면, 로그인했으면 내 기록과 할 일을 모은 홈 */
 export default function Home() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  // 로그인 여부를 알기 전에는 로그인 단추를 그리지 않는다(로그인한 사람에게 잠깐 보였다 사라지지 않게).
-  const [checking, setChecking] = useState(true);
-  const router = useRouter();
+  // undefined: 아직 모름. 알기 전에는 어느 쪽도 그리지 않는다(로그인한 사람에게 소개 화면이 잠깐 보이지 않게).
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
 
   useEffect(() => {
     let active = true;
     void supabase.auth.getSession().then(({ data }) => {
-      if (!active) return;
-      if (data.session) router.replace("/problems");
-      else setChecking(false);
+      if (active) setSession(data.session);
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) router.replace("/problems");
+    // 로그인하거나 로그아웃하면 그 자리에서 화면을 바꾼다.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, next) => {
+      setSession((current) => (current?.user.id === next?.user.id && current !== undefined ? current : next));
     });
     return () => {
       active = false;
       subscription.unsubscribe();
     };
-  }, [router]);
+  }, []);
 
-  const handleGoogleLogin = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: window.location.origin,
-          ...(SCHOOL_DOMAIN && { queryParams: { hd: SCHOOL_DOMAIN } }),
-        },
-      });
-      if (error) throw error;
-    } catch (error) {
-      setError(errorMessage(error, "Google 로그인에 연결하지 못했습니다. 다시 시도해 주세요."));
-      setLoading(false);
-    }
-  };
-
-  if (checking) {
-    return <p role="status" className="notice page page-narrow">불러오는 중…</p>;
+  if (session === undefined) {
+    return <p role="status" className="notice page">불러오는 중…</p>;
   }
-
-  return (
-    <div className="page page-narrow">
-      <h1 className="page-title">LOJ</h1>
-      <p className="mt-2">
-        학교에서 쓰는 온라인 저지입니다. 문제를 풀어 제출하면 숨겨진 테스트로 채점합니다.
-      </p>
-
-      <div className="box mt-6 p-5">
-        <button onClick={handleGoogleLogin} disabled={loading} className="btn btn-fill">
-          {loading && <LoaderCircle className="animate-spin" size={16} aria-hidden="true" />}
-          학교 Google 계정으로 로그인
-        </button>
-        {error && <p role="alert" className="notice-error mt-3 text-sm">{error}</p>}
-        {SCHOOL_DOMAIN && <p className="notice mt-3 text-sm">@{SCHOOL_DOMAIN} 계정만 쓸 수 있습니다.</p>}
-      </div>
-
-      <p className="mt-6 text-sm">
-        <Link href="/problems" className="text-link">로그인하지 않고 문제 보기</Link>
-      </p>
-
-      <h2 className="section-title mt-10">지원 언어</h2>
-      <p className="mt-1 text-sm text-muted">{Object.values(LANGUAGE_LABELS).join(", ")}</p>
-    </div>
-  );
+  return session ? <MemberHome key={session.user.id} session={session} /> : <GuestLanding />;
 }

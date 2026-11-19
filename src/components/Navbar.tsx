@@ -76,7 +76,7 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-surface">
       <div className="mx-auto flex max-w-[1080px] flex-wrap items-center gap-x-6 px-5">
-        <Link href={session ? "/problems" : "/"} className="py-2.5 text-lg">
+        <Link href="/" className="py-2.5 text-lg" aria-label="LOJ 홈">
           <Logo />
         </Link>
         <nav aria-label="주요 메뉴" className="order-last -mx-2.5 flex w-full flex-wrap items-center sm:order-none sm:mx-0 sm:w-auto">
