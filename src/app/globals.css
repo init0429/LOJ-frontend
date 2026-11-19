@@ -25,6 +25,8 @@
   --easy: #00857a;
   --medium: #a36b00;
   --hard: #d6224a;
+  --logo: #1f5fd1;
+  --logo-mark: #ffffff;
 }
 
 :root[data-theme="dark"] {
@@ -48,6 +50,59 @@
   --easy: #00b8a3;
   --medium: #ffc01e;
   --hard: #ff375f;
+}
+
+/*
+ * Interrupt: VS Code Interrupt 테마의 색. 어두운 쪽은 그 테마 그대로(검정에 가까운 두 겹 바탕,
+ * 네온 분홍 강조, 라임·호박·빨강), 밝은 쪽은 같은 색조를 흰 바탕에서 읽히도록 진하게 맞춘 짝이다.
+ * <html data-palette="interrupt">일 때 위의 색을 덮어쓴다(lib/theme.ts).
+ */
+:root[data-palette="interrupt"] {
+  color-scheme: light;
+  --canvas: #ffffff;
+  --workspace: #f3f4f8;
+  --surface: #ffffff;
+  --panel-head: #f7f8fb;
+  --panel-border: #e2e4ec;
+  --subtle: #f6f7fa;
+  --fill: rgba(20, 24, 48, 0.05);
+  --fill-strong: rgba(20, 24, 48, 0.1);
+  --line: #e2e4ec;
+  --line-strong: #c9ccd8;
+  --fg: #12141c;
+  --muted: #5a6072;
+  --accent: #d4166f;
+  --accent-hover: #b0105b;
+  --ok: #3d7a00;
+  --bad: #d61f3a;
+  --easy: #3d7a00;
+  --medium: #a35f00;
+  --hard: #d61f3a;
+  --logo: #ff2e88;
+  --logo-mark: #0a0b10;
+}
+
+:root[data-palette="interrupt"][data-theme="dark"] {
+  color-scheme: dark;
+  --canvas: #090a0f;
+  --workspace: #090a0f;
+  --surface: #0d0f15;
+  --panel-head: #12141c;
+  --panel-border: #181b26;
+  --subtle: #0b0d12;
+  --fill: rgba(169, 177, 214, 0.07);
+  --fill-strong: rgba(169, 177, 214, 0.13);
+  --line: #181b26;
+  --line-strong: #262a38;
+  --fg: #d6dae4;
+  --muted: #8a90a2;
+  --accent: #ff2e88;
+  --accent-hover: #ff5aa2;
+  --ok: #b8ff3a;
+  --bad: #ff4d5e;
+  --easy: #b8ff3a;
+  --medium: #ffb224;
+  --hard: #ff4d5e;
 }
 
 @theme inline {

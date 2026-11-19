@@ -3,13 +3,8 @@
 import ProblemLevel from "@/components/ProblemLevel";
 import { SAVE_NOTE, SettingRow, SettingsHeading, Switch } from "@/components/SettingsShell";
 import { usePreferences } from "@/hooks/usePreferences";
-import { useThemeMode, type ThemeMode } from "@/hooks/useTheme";
-
-const THEMES: { value: ThemeMode; label: string }[] = [
-  { value: "system", label: "시스템 설정" },
-  { value: "light", label: "밝게" },
-  { value: "dark", label: "어둡게" },
-];
+import { useThemeMode } from "@/hooks/useTheme";
+import { THEME_OPTIONS, isThemeMode } from "@/lib/theme";
 
 export default function ViewSettings() {
   const [preferences, update] = usePreferences();
@@ -19,25 +14,23 @@ export default function ViewSettings() {
     <>
       <SettingsHeading title="보기" lead={SAVE_NOTE} />
 
-      <SettingRow label="테마" hint="시스템 설정을 고르면 운영체제의 밝기 설정을 따릅니다.">
-        <div role="radiogroup" aria-label="테마" className="inline-flex rounded-lg bg-fill p-0.5">
-          {THEMES.map((theme) => (
-            <label
-              key={theme.value}
-              className="cursor-pointer rounded-md px-3 py-1.5 text-sm text-muted has-checked:bg-surface has-checked:font-semibold has-checked:text-fg has-checked:shadow-sm has-focus-visible:outline-2 has-focus-visible:outline-accent"
-            >
-              <input
-                type="radio"
-                name="theme"
-                value={theme.value}
-                checked={themeMode === theme.value}
-                onChange={() => setThemeMode(theme.value)}
-                className="sr-only"
-              />
-              {theme.label}
-            </label>
+      <SettingRow
+        label="테마"
+        htmlFor="view-theme"
+        hint="시스템 설정에 맞춤은 운영체제 밝기에 따라 기본 라이트·다크를 씁니다. Interrupt는 네온 분홍 강조색의 테마입니다. 화면 위쪽의 해·달 단추는 고른 테마 안에서 밝기만 바꿉니다."
+      >
+        <select
+          id="view-theme"
+          value={themeMode}
+          onChange={(event) => {
+            if (isThemeMode(event.target.value)) setThemeMode(event.target.value);
+          }}
+          className="input w-48"
+        >
+          {THEME_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>{option.label}</option>
           ))}
-        </div>
+        </select>
       </SettingRow>
 
       <SettingRow

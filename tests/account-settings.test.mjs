@@ -60,6 +60,8 @@ test("계정에서 받은 값은 검사해서 모르는 것과 틀린 것을 걸
     plain(parseAccountSettings({ preferences: "nope", language: "brainfuck", theme: "blue" })),
     { preferences: {}, language: null, theme: "system" },
   );
+  assert.equal(parseAccountSettings({ theme: "interrupt-dark" }).theme, "interrupt-dark");
+  assert.equal(parseAccountSettings({ theme: "interrupt-light" }).theme, "interrupt-light");
 });
 
 test("이 브라우저의 설정을 같은 모양으로 읽는다", () => {

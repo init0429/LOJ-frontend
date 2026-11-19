@@ -7,7 +7,7 @@ import {
   parsePreferences,
   type Preferences,
 } from "./preferences";
-import { THEME_KEY, type ThemeMode } from "./theme";
+import { THEME_KEY, isThemeMode, type ThemeMode } from "./theme";
 
 // 로그인한 사용자의 설정을 계정(user_settings.settings)에 둔다. 화면은 지금처럼 localStorage를 읽고,
 // components/AccountSettingsSync가 로그인할 때 계정 값을 내려받고 바뀔 때마다 올린다.
@@ -22,7 +22,7 @@ export interface AccountSettings {
 
 const validLanguage = (value: unknown): string | null =>
   typeof value === "string" && Object.hasOwn(LANGUAGE_LABELS, value) ? value : null;
-const validTheme = (value: unknown): ThemeMode => (value === "light" || value === "dark" ? value : "system");
+const validTheme = (value: unknown): ThemeMode => (isThemeMode(value) ? value : "system");
 
 /** 계정에서 받은 값을 검사해 모양을 맞춘다. 모르는 항목은 버리고, 틀린 항목은 기본값으로. */
 export function parseAccountSettings(value: unknown): AccountSettings {

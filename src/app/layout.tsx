@@ -4,6 +4,7 @@ import AccountSettingsSync from "@/components/AccountSettingsSync";
 import { DialogProvider } from "@/components/DialogProvider";
 import Navbar from "@/components/Navbar";
 import { codeHangul, codeLatin } from "@/lib/fonts";
+import { THEME_BOOT_SCRIPT } from "@/lib/theme";
 
 export const metadata: Metadata = {
   // 각 화면의 layout이 제목을 정하면 "문제 · LOJ"처럼 붙는다. 문제·대회 화면은 열린 문제 이름으로 바꾼다.
@@ -30,7 +31,7 @@ export default function RootLayout({
       className={`${codeLatin.variable} ${codeHangul.variable} h-full antialiased`}
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: `(function(){var t;try{t=localStorage.getItem('loj-theme')}catch(e){}if(t!=='light'&&t!=='dark')t=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';document.documentElement.dataset.theme=t})()` }} />
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOT_SCRIPT }} />
       </head>
       <body className="min-h-full flex flex-col">
         <DialogProvider>
