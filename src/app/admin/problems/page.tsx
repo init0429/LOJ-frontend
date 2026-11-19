@@ -7,9 +7,14 @@ import { useIsAdmin } from "@/hooks/useIsAdmin";
 import AdminGate from "@/components/AdminGate";
 import AdminTabs from "@/components/AdminTabs";
 import Difficulty from "@/components/Difficulty";
+import FunctionSignatureFields from "@/components/FunctionSignatureFields";
+import { ExampleNotationHelper, FunctionCheck } from "@/components/FunctionTestTools";
+import { Switch } from "@/components/SettingsShell";
 import SolvedacProblemFields from "@/components/SolvedacProblemFields";
+import { useSignaturePreview } from "@/hooks/useSignaturePreview";
 import { DIFFICULTY_LEVELS, difficultyLabel } from "@/lib/difficulty";
 import { errorMessage } from "@/lib/errors";
+import { MAX_CHECKED_TESTS, MAX_CHECKED_TEXT, previewSignature } from "@/lib/function-api";
 import {
   emptySolvedacInfo,
   hasSolvedacInfo,
@@ -17,6 +22,12 @@ import {
   saveProblemSolvedac,
   type SolvedacInfo,
 } from "@/lib/problem-solvedac";
+import {
+  emptySignature,
+  normalizeSignature,
+  parseStoredSignature,
+  type Signature,
+} from "@/lib/signature";
 import { tierName } from "@/lib/solvedac-tier";
 import { parseBojId, type Tag } from "@/lib/tag-search";
 
@@ -89,6 +100,13 @@ export default function AdminProblemsPage() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [listMessage, setListMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
+  // 함수 구현. DB에 signature 칸이 아직 없으면(마이그레이션 전) false가 되고 관련 칸을 숨긴다.
+  const [functionReady, setFunctionReady] = useState<boolean | null>(null);
+  const [functionIds, setFunctionIds] = useState<Set<number>>(new Set());
+  const [functionEnabled, setFunctionEnabled] = useState(false);
+  const [signature, setSignature] = useState<Signature>(emptySignature);
+  const signatureState = useSignaturePreview(functionEnabled, signature, testCases);
+
   useEffect(() => {
     if (!isAdmin) return;
     let active = true;
@@ -109,6 +127,23 @@ export default function AdminProblemsPage() {
       setExisting(basic.data || []);
     };
     void load();
+    return () => {
+      active = false;
+    };
+  }, [isAdmin]);
+
+  useEffect(() => {
+    if (!isAdmin) return;
+    let active = true;
+    supabase
+      .from("problems")
+      .select("id")
+      .not("signature", "is", null)
+      .then(({ data, error: probeError }) => {
+        if (!active) return;
+        setFunctionReady(!probeError);
+        setFunctionIds(new Set((data ?? []).map((row) => row.id as number)));
+      });
     return () => {
       active = false;
     };
@@ -150,6 +185,8 @@ export default function AdminProblemsPage() {
     setDifficulty(1);
     setTestCases([emptyTestCase()]);
     setSolvedac(emptySolvedacInfo());
+    setFunctionEnabled(false);
+    setSignature(emptySignature());
     setEditingId(null);
     setOriginalCaseIds([]);
   };
@@ -174,7 +211,31 @@ export default function AdminProblemsPage() {
     return { bojId: boj.bojId };
   };
 
-  const problemFields = () => ({
+  /**
+   * 저장할 시그니처. 함수 구현을 켰으면 백엔드에 한 번 더 검사를 맡기고 정리된 것을 쓴다.
+   * undefined: DB에 칸이 없어 건드리지 않음, null: 함수 구현을 받지 않음. 저장을 멈출 때는 false
+   */
+  const resolveSignature = async (): Promise<Signature | null | undefined | false> => {
+    if (!functionReady) return undefined;
+    if (!functionEnabled) return null;
+    const checked = testCases.filter((tc) => tc.input_data.length <= MAX_CHECKED_TEXT && tc.expected_output.length <= MAX_CHECKED_TEXT);
+    try {
+      const preview = await previewSignature(
+        normalizeSignature(signature),
+        checked.slice(0, MAX_CHECKED_TESTS).map((tc) => ({ input: tc.input_data, output: tc.expected_output })),
+      );
+      const failing = preview.tests.filter((test) => test.error).length;
+      if (failing > 0 && !window.confirm(`함수 구현으로는 맞힐 수 없는 테스트가 ${failing}개 있습니다(테스트 아래 빨간 글씨). 그대로 저장할까요?`)) {
+        return false;
+      }
+      return preview.signature;
+    } catch (err) {
+      setError(`함수 구현: ${errorMessage(err, "시그니처를 확인하지 못했습니다.")}`);
+      return false;
+    }
+  };
+
+  const problemFields = (savedSignature: Signature | null | undefined) => ({
     title: title.trim(),
     description: description.trim(),
     input_description: inputDescription.trim() || null,
@@ -182,7 +243,18 @@ export default function AdminProblemsPage() {
     time_limit_ms: timeLimitMs,
     memory_limit_mb: memoryLimitMb,
     difficulty,
+    ...(savedSignature !== undefined && { signature: savedSignature }),
   });
+
+  const rememberFunction = (problemId: number, savedSignature: Signature | null | undefined) => {
+    if (savedSignature === undefined) return;
+    setFunctionIds((prev) => {
+      const next = new Set(prev);
+      if (savedSignature) next.add(problemId);
+      else next.delete(problemId);
+      return next;
+    });
+  };
 
   const startEdit = async (row: ProblemRow) => {
     if (editingId !== null && editingId !== row.id && !window.confirm(`${editingId}번 문제를 고치던 내용을 버리고 ${row.id}번을 열까요?`)) return;
@@ -209,16 +281,19 @@ export default function AdminProblemsPage() {
     setTestCases(loaded.length ? loaded : [emptyTestCase()]);
     setOriginalCaseIds(loaded.map((tc) => tc.id));
     setSolvedac(infoOf(row));
+    const stored = parseStoredSignature(data.signature);
+    setFunctionEnabled(stored !== null);
+    setSignature(stored ?? emptySignature());
     setEditingId(row.id);
     setError(null);
     setCreated(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const handleUpdate = async (problemId: number, bojId: number | null) => {
+  const handleUpdate = async (problemId: number, bojId: number | null, savedSignature: Signature | null | undefined) => {
     setSubmitting(true);
     try {
-      const { error: problemErr } = await supabase.from("problems").update(problemFields()).eq("id", problemId);
+      const { error: problemErr } = await supabase.from("problems").update(problemFields(savedSignature)).eq("id", problemId);
       if (problemErr) throw problemErr;
 
       // 새 것 추가 → 있던 것 고치기 → 뺀 것 지우기 순서로 해서, 중간에 실패해도 채점할 테스트가 비지 않게 한다.
@@ -243,6 +318,7 @@ export default function AdminProblemsPage() {
         if (removeErr) throw removeErr;
       }
 
+      rememberFunction(problemId, savedSignature);
       if (solvedacReady) await saveProblemSolvedac(problemId, solvedac, bojId);
 
       const savedTitle = title.trim();
@@ -306,18 +382,22 @@ export default function AdminProblemsPage() {
   const handleSave = async () => {
     const checked = validate();
     if (!checked) return;
-    if (editingId !== null) return handleUpdate(editingId, checked.bojId);
-    return handleCreate(checked.bojId);
+    setSubmitting(true);
+    const savedSignature = await resolveSignature();
+    setSubmitting(false);
+    if (savedSignature === false) return;
+    if (editingId !== null) return handleUpdate(editingId, checked.bojId, savedSignature);
+    return handleCreate(checked.bojId, savedSignature);
   };
 
-  const handleCreate = async (bojId: number | null) => {
+  const handleCreate = async (bojId: number | null, savedSignature: Signature | null | undefined) => {
     const boj = { bojId };
     const validCases = testCases;
     setSubmitting(true);
     try {
       const { data: problem, error: problemErr } = await supabase
         .from("problems")
-        .insert(problemFields())
+        .insert(problemFields(savedSignature))
         .select()
         .single();
 
@@ -359,6 +439,7 @@ export default function AdminProblemsPage() {
       }
 
       setExisting((prev) => [row, ...prev]);
+      rememberFunction(problem.id, savedSignature);
       setCreated(`${problem.id}번 “${problem.title}” 문제를 등록했습니다.${solvedacNote}`);
       resetForm();
     } catch (err) {
@@ -448,6 +529,42 @@ export default function AdminProblemsPage() {
         </div>
       )}
 
+      <h2 className="section-title mt-10">함수 구현</h2>
+      {functionReady === false ? (
+        <p className="notice mt-2 text-sm">
+          DB에 함수 구현 칸이 아직 없습니다. migrations/20261119_function_problems.sql을 실행하면 여기서 정할 수 있습니다.
+        </p>
+      ) : (
+        <div className="mt-3">
+          <div className="flex items-start justify-between gap-6">
+            <div>
+              <label htmlFor="function-enabled" className="text-sm font-medium">함수 구현으로도 풀 수 있게 하기</label>
+              <p className="mt-0.5 text-[13px] text-muted">
+                켜면 푸는 사람이 전체 프로그램과 함수 구현(class Solution 등) 중에서 고릅니다. 테스트는 그대로 하나만 두고,
+                함수 구현으로 내면 채점할 때 입력을 인자로 바꿔 함수를 부르고 반환값을 출력합니다.
+              </p>
+            </div>
+            <Switch id="function-enabled" checked={functionEnabled} onChange={setFunctionEnabled} />
+          </div>
+          {functionEnabled && (
+            <div className="mt-4">
+              <FunctionSignatureFields value={signature} onChange={setSignature} state={signatureState} />
+              <details className="mt-4 text-sm">
+                <summary className="cursor-pointer font-medium">테스트 입력·출력을 적는 규칙</summary>
+                <ul className="mt-2 list-disc space-y-1 pl-5 text-muted">
+                  <li>인자를 순서대로 적습니다. 숫자·bool·문자는 공백이나 줄바꿈으로 나눈 값 하나, bool은 true/false.</li>
+                  <li>문자열은 한 줄 통째로(공백 포함). 문자열은 늘 새 줄에서 시작합니다.</li>
+                  <li>배열·리스트·ListNode는 개수 n 다음에 값 n개. 문자열 배열은 n 다음에 n줄.</li>
+                  <li>2차원 배열은 행 수 r 다음에, 행마다 그 행의 길이 k와 값 k개.</li>
+                  <li>TreeNode는 개수 n 다음에 레벨 순서 값 n개(빈 자리는 null). 예: 7 / 3 9 20 null null 15 7</li>
+                  <li>답은 개수 없이: 배열은 공백으로 이은 한 줄, 2차원은 행마다 한 줄, 문자열 배열은 값마다 한 줄, 실수는 소수점 5자리, 트리는 끝의 null을 뺀 레벨 순서.</li>
+                </ul>
+              </details>
+            </div>
+          )}
+        </div>
+      )}
+
       <h2 className="section-title mt-10">테스트케이스</h2>
       <p className="mt-1 text-sm text-muted">숨김으로 표시한 것은 채점에만 쓰이고 문제에는 보이지 않습니다.</p>
       <ol className="mt-3 space-y-3">
@@ -477,6 +594,22 @@ export default function AdminProblemsPage() {
                 <textarea value={tc.expected_output} onChange={(e) => updateTestCase(idx, { expected_output: e.target.value })} rows={3} className="input input-code mt-1 font-normal" />
               </label>
             </div>
+            {functionEnabled && (
+              <div className="mt-3 space-y-2">
+                <FunctionCheck
+                  check={signatureState.checks[idx]}
+                  loading={signatureState.loading}
+                  onUseNormalized={(output) => updateTestCase(idx, { expected_output: output })}
+                />
+                <ExampleNotationHelper
+                  signature={normalizeSignature(signature)}
+                  disabled={signatureState.incomplete || signatureState.error !== null}
+                  onFill={({ input, output }) =>
+                    updateTestCase(idx, { input_data: input, ...(output !== null && { expected_output: output }) })
+                  }
+                />
+              </div>
+            )}
           </li>
         ))}
       </ol>
@@ -518,7 +651,10 @@ export default function AdminProblemsPage() {
                 {existing.map((p) => (
                   <tr key={p.id} aria-current={editingId === p.id ? "true" : undefined}>
                     <td className="font-semibold tabular-nums">{p.id}</td>
-                    <td>{p.title}</td>
+                    <td>
+                      {p.title}
+                      {functionIds.has(p.id) && <span className="chip ml-2 align-middle">함수 구현</span>}
+                    </td>
                     <td><Difficulty value={p.difficulty} /></td>
                     {solvedacReady && (
                       <td className="text-sm text-muted">
