@@ -69,7 +69,7 @@ export default function Navbar() {
     return null;
   }
 
-  const items = isAdmin ? [...NAV_ITEMS, { href: "/admin/contests", label: "관리" }] : NAV_ITEMS;
+  const items = isAdmin ? [...NAV_ITEMS, { href: "/admin/problems", label: "관리" }] : NAV_ITEMS;
   const isCurrent = (href: string) =>
     href.startsWith("/admin") ? pathname.startsWith("/admin") : pathname.startsWith(href);
 

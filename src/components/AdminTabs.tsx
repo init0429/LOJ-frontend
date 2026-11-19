@@ -4,8 +4,8 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const TABS = [
-  { href: "/admin/contests", label: "대회 개설" },
   { href: "/admin/problems", label: "문제 등록" },
+  { href: "/admin/contests", label: "대회 개설" },
 ];
 
 export default function AdminTabs() {
