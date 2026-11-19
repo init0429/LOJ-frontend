@@ -14,6 +14,7 @@ import { supabase } from "@/lib/supabase";
 import { RUN_SHORTCUT, SUBMIT_SHORTCUT, useRunShortcuts } from "@/hooks/useRunShortcuts";
 import { useSubmissionFeedback, useSubmissionState } from "@/hooks/useSubmissionState";
 import CodeEditor from "@/components/CodeEditor";
+import CodeModeToggle from "@/components/CodeModeToggle";
 import LanguageSelect from "@/components/LanguageSelect";
 import Logo from "@/components/Logo";
 import ProblemSheet from "@/components/ProblemSheet";
@@ -21,10 +22,20 @@ import SubmissionHistory from "@/components/SubmissionHistory";
 import SubmissionResult from "@/components/SubmissionResult";
 import TestRunResult from "@/components/TestRunResult";
 import ThemeToggle from "@/components/ThemeToggle";
+import {
+  exampleViews,
+  languageFor,
+  loadFunctionTemplates,
+  modeLanguages,
+  starterCode,
+  type CodeMode,
+  type FunctionTemplates,
+} from "@/lib/code-mode";
 import { errorMessage } from "@/lib/errors";
-import { loadDraft, loadLanguage, saveDraft, saveLanguage } from "@/lib/drafts";
+import { loadDraft, loadLanguage, loadMode, saveDraft, saveLanguage, saveMode } from "@/lib/drafts";
 import { submitCode, testCode } from "@/lib/judge-api";
-import { LANGUAGE_LABELS, STARTER_CODE } from "@/lib/languages";
+import { LANGUAGE_LABELS } from "@/lib/languages";
+import { parsePreferences, readPreferencesRaw } from "@/lib/preferences";
 import type { Problem, Submission, TestCase, TestResult } from "@/lib/types";
 import { isJudging } from "@/lib/verdict";
 
@@ -49,6 +60,11 @@ function ProblemWorkspaceContent() {
   // (처음 그릴 때는 문제를 불러오는 중이라 편집기가 없으므로 서버 화면과 어긋나지 않는다.)
   const [language, setLanguage] = useState(loadLanguage);
   const [code, setCode] = useState(() => loadDraft(problemId, loadLanguage()));
+  // 함수 구현을 받는 문제면 그 시작 코드와 예제 표기. 형식은 문제를 열 때 정한다.
+  const [templates, setTemplates] = useState<FunctionTemplates | null>(null);
+  const [templatesFailed, setTemplatesFailed] = useState(false);
+  const [mode, setMode] = useState<CodeMode>("program");
+  const starter = (lang: string, codeMode: CodeMode = mode) => starterCode(lang, codeMode, templates);
   const consolePanel = usePanelRef();
   const [mobilePane, setMobilePane] = useState<"description" | "code">("description");
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -57,31 +73,50 @@ function ProblemWorkspaceContent() {
   const requestBusy = useRef(false);
 
   const handleLanguageChange = (newLanguage: string) => {
-    setCode(loadDraft(problemId, newLanguage));
+    setCode(loadDraft(problemId, newLanguage, mode, starter(newLanguage)));
     setLanguage(newLanguage);
     saveLanguage(newLanguage);
   };
 
   const handleCodeChange = (value: string) => {
     setCode(value);
-    saveDraft(problemId, language, value);
+    saveDraft(problemId, language, value, mode, starter(language));
+  };
+
+  // 형식마다 코드를 따로 저장해 두므로 바꿔도 쓰던 코드는 남는다.
+  // 함수 구현에 없는 언어(SQL)였으면 Python으로 바꾸되, 기본 언어 설정은 건드리지 않는다.
+  const handleModeChange = (next: CodeMode) => {
+    if (next === mode) return;
+    const nextLanguage = languageFor(next, templates, language);
+    setMode(next);
+    saveMode(problemId, next);
+    setLanguage(nextLanguage);
+    setCode(loadDraft(problemId, nextLanguage, next, starter(nextLanguage, next)));
   };
 
   const resetCode = () => {
     if (!window.confirm(`${LANGUAGE_LABELS[language] ?? language} 코드를 처음 상태로 되돌릴까요? 쓰던 코드는 사라집니다.`)) return;
-    const starter = STARTER_CODE[language] ?? "";
-    setCode(starter);
-    saveDraft(problemId, language, starter);
+    const initial = starter(language);
+    setCode(initial);
+    saveDraft(problemId, language, initial, mode, initial);
   };
 
-  const loadSubmissionCode = (submittedLanguage: string, submittedCode: string) => {
-    const current = submittedLanguage === language ? code : loadDraft(problemId, submittedLanguage);
-    const untouched = current === (STARTER_CODE[submittedLanguage] ?? "") || current === submittedCode;
+  const loadSubmissionCode = (submittedLanguage: string, submittedCode: string, submittedMode: CodeMode) => {
+    // 함수 구현으로 낸 코드는 지금도 함수 구현을 받는 문제일 때만 그 형식으로 불러온다.
+    const targetMode: CodeMode = submittedMode === "function" && templates ? "function" : "program";
+    const current = submittedLanguage === language && targetMode === mode
+      ? code
+      : loadDraft(problemId, submittedLanguage, targetMode, starter(submittedLanguage, targetMode));
+    const untouched = current === starter(submittedLanguage, targetMode) || current === submittedCode;
     if (!untouched && !window.confirm("편집기의 코드를 이 제출의 코드로 바꿀까요? 지금 쓰던 코드는 사라집니다.")) return;
+    if (templates) {
+      setMode(targetMode);
+      saveMode(problemId, targetMode);
+    }
     setLanguage(submittedLanguage);
     setCode(submittedCode);
     saveLanguage(submittedLanguage);
-    saveDraft(problemId, submittedLanguage, submittedCode);
+    saveDraft(problemId, submittedLanguage, submittedCode, targetMode, starter(submittedLanguage, targetMode));
     setMobilePane("code");
   };
 
@@ -116,6 +151,20 @@ function ProblemWorkspaceContent() {
         setLoadError("문제를 불러오지 못했습니다. 주소가 맞는지 확인해 주세요.");
         return;
       }
+      // 함수 구현을 받는 문제면 시작 코드를 받은 뒤에 편집기를 연다(전체 프로그램 코드가 잠깐 보이지 않게).
+      const functions = await loadFunctionTemplates(data);
+      if (cancelled) return;
+      if (functions.templates) {
+        const opened = loadMode(problemId) ?? parsePreferences(readPreferencesRaw()).codeMode;
+        if (opened === "function") {
+          const openedLanguage = languageFor("function", functions.templates, loadLanguage());
+          setMode("function");
+          setLanguage(openedLanguage);
+          setCode(loadDraft(problemId, openedLanguage, "function", starterCode(openedLanguage, "function", functions.templates)));
+        }
+      }
+      setTemplates(functions.templates);
+      setTemplatesFailed(functions.failed);
       setLoadError(null);
       setProblem(data);
 
@@ -159,7 +208,7 @@ function ProblemWorkspaceContent() {
         }
         const { data, error } = await supabase
           .from("submissions")
-          .select("id, status, language, created_at")
+          .select("id, status, language, created_at, mode")
           .eq("problem_id", problemId)
           .eq("user_id", session.user.id)
           .order("created_at", { ascending: false });
@@ -188,6 +237,7 @@ function ProblemWorkspaceContent() {
         problem_id: parseInt(problemId, 10),
         language,
         code,
+        ...(mode === "function" && { mode }),
       }));
     } catch (err) {
       setSubmitError(errorMessage(err, "제출하지 못했습니다. 다시 눌러 주세요."));
@@ -211,6 +261,7 @@ function ProblemWorkspaceContent() {
         problem_id: parseInt(problemId, 10),
         language,
         code,
+        ...(mode === "function" && { mode }),
       }));
     } catch (err) {
       setTestResult(null);
@@ -299,6 +350,7 @@ function ProblemWorkspaceContent() {
                 <ProblemSheet
                   problem={problem}
                   examples={testCases}
+                  exampleViews={mode === "function" ? exampleViews(templates) : undefined}
                   solved={solvedBefore || justSolved}
                   withTags
                 />
@@ -332,8 +384,14 @@ function ProblemWorkspaceContent() {
                     코드
                   </p>
                 </div>
-                <div className="flex flex-none items-center justify-between gap-2 border-b border-line px-1.5 py-1">
-                  <LanguageSelect value={language} onChange={handleLanguageChange} />
+                <div className="flex flex-none flex-wrap items-center justify-between gap-2 border-b border-line px-1.5 py-1">
+                  <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
+                    {templates && <CodeModeToggle value={mode} onChange={handleModeChange} />}
+                    <LanguageSelect value={language} onChange={handleLanguageChange} languages={modeLanguages(mode, templates)} />
+                    {templatesFailed && (
+                      <p className="notice text-xs">함수 구현 시작 코드를 받지 못해 전체 프로그램만 쓸 수 있습니다. 새로고침해 보세요.</p>
+                    )}
+                  </div>
                   <button
                     type="button"
                     onClick={resetCode}

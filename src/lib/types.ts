@@ -9,6 +9,8 @@ export interface Problem {
   solvedac_tier?: number | null;
   time_limit_ms: number;
   memory_limit_mb: number;
+  /** 함수 구현을 받는 문제면 시그니처(모양은 lib/signature.ts). 아니면 null */
+  signature?: unknown;
 }
 
 export interface Contest {
@@ -29,6 +31,15 @@ export interface Submission {
   status: string;
   language: string;
   created_at: string;
+  /** program(전체 프로그램) 또는 function(함수 구현). 마이그레이션 전 기록에는 없다 */
+  mode?: string;
+}
+
+/** 함수 구현으로 예제를 실행했을 때 백엔드가 덧붙이는 인자 표기. 바꾸지 못한 칸은 null */
+export interface CaseDisplay {
+  input: string | null;
+  expected: string | null;
+  actual: string | null;
 }
 
 export interface CaseResult {
@@ -36,6 +47,7 @@ export interface CaseResult {
   input: string;
   expected: string;
   actual: string;
+  display?: CaseDisplay;
 }
 
 export interface TestResult {

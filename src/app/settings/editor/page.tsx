@@ -56,6 +56,22 @@ export default function EditorSettings() {
         <Switch id="editor-auto-close" checked={preferences.editorAutoClose} onChange={(next) => update({ editorAutoClose: next })} />
       </SettingRow>
 
+      <SettingRow
+        label="함수형 문제의 기본 형식"
+        htmlFor="editor-code-mode"
+        hint="함수 구현도 받는 문제를 처음 열 때의 형식입니다. 문제에서 형식을 바꾸면 그 문제는 바꾼 형식으로 열립니다."
+      >
+        <select
+          id="editor-code-mode"
+          value={preferences.codeMode}
+          onChange={(event) => update({ codeMode: event.target.value === "program" ? "program" : "function" })}
+          className="input w-56"
+        >
+          <option value="function">함수 구현 (class Solution 등)</option>
+          <option value="program">전체 프로그램 (표준 입출력)</option>
+        </select>
+      </SettingRow>
+
       <section className="mt-6" aria-labelledby="editor-preview-title">
         <div className="flex items-center justify-between gap-3">
           <h3 id="editor-preview-title" className="text-sm font-medium">미리 보기</h3>

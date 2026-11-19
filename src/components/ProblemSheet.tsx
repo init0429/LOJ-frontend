@@ -12,9 +12,12 @@ export default function ProblemSheet({
   number,
   solved = false,
   withTags = false,
+  exampleViews,
 }: {
   problem: Problem;
   examples: TestCase[];
+  /** 함수 구현으로 볼 때 예제를 인자 표기로 보여 준다(테스트케이스 번호 → 표기). 바꾸지 못한 칸은 원문 */
+  exampleViews?: Map<number, { input: string | null; output: string | null }>;
   /** 번호 자리에 보여 줄 값. 생략하면 문제 번호. */
   number?: number | string;
   solved?: boolean;
@@ -60,21 +63,24 @@ export default function ProblemSheet({
         </section>
       )}
 
-      {examples.map((example, index) => (
-        <section key={example.id} className="mt-8">
-          <h2 className="font-semibold">예제 {index + 1}</h2>
-          <dl className="mt-2 border-l-2 border-line-strong pl-4">
-            <dt className="text-sm font-semibold">입력</dt>
-            <dd>
-              <pre className="mt-1 font-mono text-[13px] leading-relaxed whitespace-pre-wrap text-muted">{example.input_data}</pre>
-            </dd>
-            <dt className="mt-3 text-sm font-semibold">출력</dt>
-            <dd>
-              <pre className="mt-1 font-mono text-[13px] leading-relaxed whitespace-pre-wrap text-muted">{example.expected_output}</pre>
-            </dd>
-          </dl>
-        </section>
-      ))}
+      {examples.map((example, index) => {
+        const view = exampleViews?.get(example.id);
+        return (
+          <section key={example.id} className="mt-8">
+            <h2 className="font-semibold">예제 {index + 1}</h2>
+            <dl className="mt-2 border-l-2 border-line-strong pl-4">
+              <dt className="text-sm font-semibold">입력</dt>
+              <dd>
+                <pre className="mt-1 font-mono text-[13px] leading-relaxed whitespace-pre-wrap text-muted">{view?.input ?? example.input_data}</pre>
+              </dd>
+              <dt className="mt-3 text-sm font-semibold">출력</dt>
+              <dd>
+                <pre className="mt-1 font-mono text-[13px] leading-relaxed whitespace-pre-wrap text-muted">{view?.output ?? example.expected_output}</pre>
+              </dd>
+            </dl>
+          </section>
+        );
+      })}
 
       {withTags && <ProblemTags problemId={problem.id} />}
     </article>

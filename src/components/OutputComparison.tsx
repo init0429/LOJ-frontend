@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { compareOutputs, describeDifference, outputLines, type OutputLine } from "@/lib/output-diff";
+import type { CaseDisplay } from "@/lib/types";
 
 // 오답이 아닌 실패는 출력을 비교해도 소용이 없어서 무슨 일이 있었는지만 알린다.
 const STATUS_HINTS: Record<string, string> = {
@@ -14,18 +15,26 @@ const LIMIT_HINTS: Record<string, string> = {
   "Output limit exceeded": "출력이 너무 많습니다. 디버그용 출력이 남아 있지 않은지 확인해 보세요.",
 };
 
-/** 테스트 하나의 입력, 내 출력, 기대한 출력. 오답이면 다른 줄을 표시한다. */
+/**
+ * 테스트 하나의 입력, 내 출력, 기대한 출력. 오답이면 다른 줄을 표시한다.
+ * 함수 구현으로 실행했으면 인자와 반환값 표기(display)로 보여 준다. 바꾸지 못한 칸은 원문 그대로.
+ */
 export default function OutputComparison({
   status,
-  input,
-  expected,
-  actual,
+  display,
+  ...raw
 }: {
   status: string;
   input: string;
   expected: string;
   actual: string;
+  display?: CaseDisplay;
 }) {
+  const input = display?.input ?? raw.input;
+  // 두 출력은 함께 바꿔야 비교가 맞는다. 한쪽이라도 못 바꿨으면 둘 다 원문으로 보여 준다.
+  const viewed = display?.expected != null && display.actual != null;
+  const expected = viewed ? display.expected! : raw.expected;
+  const actual = viewed ? display.actual! : raw.actual;
   const wrong = status === "Wrong Answer";
   const diff = compareOutputs(actual, expected);
   const hint = wrong

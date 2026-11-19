@@ -8,6 +8,7 @@ import { supabase } from "@/lib/supabase";
 import { RUN_SHORTCUT, SUBMIT_SHORTCUT, useRunShortcuts } from "@/hooks/useRunShortcuts";
 import { useSubmissionFeedback, useSubmissionState } from "@/hooks/useSubmissionState";
 import CodeEditor from "@/components/CodeEditor";
+import CodeModeToggle from "@/components/CodeModeToggle";
 import ContestStandings from "@/components/ContestStandings";
 import LanguageSelect from "@/components/LanguageSelect";
 import Logo from "@/components/Logo";
@@ -16,11 +17,22 @@ import ProblemSheet from "@/components/ProblemSheet";
 import SubmissionResult from "@/components/SubmissionResult";
 import TestRunResult from "@/components/TestRunResult";
 import ThemeToggle from "@/components/ThemeToggle";
+import {
+  exampleViews,
+  isCodeMode,
+  isUntouchedStarter,
+  languageFor,
+  loadFunctionTemplates,
+  modeLanguages,
+  starterCode,
+  type CodeMode,
+  type FunctionTemplates,
+} from "@/lib/code-mode";
 import { loadLanguage, saveLanguage } from "@/lib/drafts";
 import { errorMessage } from "@/lib/errors";
 import { formatCountdown, formatDateTime } from "@/lib/format";
 import { submitCode, testCode } from "@/lib/judge-api";
-import { STARTER_CODE } from "@/lib/languages";
+import { parsePreferences, readPreferencesRaw } from "@/lib/preferences";
 import type { Contest, Problem, TestCase, TestResult } from "@/lib/types";
 import { isJudging } from "@/lib/verdict";
 
@@ -50,6 +62,10 @@ export default function ContestWorkspace() {
 
   const [code, setCode] = useState("");
   const [language, setLanguage] = useState("python");
+  // 함수 구현을 받는 문제면 그 시작 코드. 형식은 임시 저장과 함께 서버(contest_drafts.mode)에 남긴다.
+  const [mode, setMode] = useState<CodeMode>("program");
+  const [templates, setTemplates] = useState<FunctionTemplates | null>(null);
+  const [templatesFailed, setTemplatesFailed] = useState(false);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">(
     "idle",
@@ -139,18 +155,24 @@ export default function ContestWorkspace() {
   }, [contestId, started]);
 
   useEffect(() => {
-    if (currentProblemId === undefined || !ongoing) return;
+    if (currentProblem === undefined || !ongoing) return;
+    const currentProblemId = currentProblem.id;
     let cancelled = false;
 
     (async () => {
-      const { data: tcs } = await supabase
-        .from("test_cases")
-        .select("*")
-        .eq("problem_id", currentProblemId)
-        .eq("is_hidden", false)
-        .order("id");
+      const [{ data: tcs }, functions] = await Promise.all([
+        supabase
+          .from("test_cases")
+          .select("*")
+          .eq("problem_id", currentProblemId)
+          .eq("is_hidden", false)
+          .order("id"),
+        loadFunctionTemplates(currentProblem),
+      ]);
       if (cancelled) return;
       setTestCases(tcs || []);
+      setTemplates(functions.templates);
+      setTemplatesFailed(functions.failed);
 
       const {
         data: { session },
@@ -163,7 +185,7 @@ export default function ContestWorkspace() {
 
       const { data: draft, error } = await supabase
         .from("contest_drafts")
-        .select("code, language")
+        .select("code, language, mode")
         .eq("contest_id", contestId)
         .eq("problem_id", currentProblemId)
         .eq("user_id", session.user.id)
@@ -177,11 +199,14 @@ export default function ContestWorkspace() {
       if (draft) {
         setCode(draft.code);
         setLanguage(draft.language);
+        setMode(functions.templates && isCodeMode(draft.mode) ? draft.mode : "program");
       } else {
-        // 처음 여는 문제는 마지막에 고른 언어의 시작 코드로 연다.
-        const preferred = loadLanguage();
+        // 처음 여는 문제는 기본 형식과 마지막에 고른 언어의 시작 코드로 연다.
+        const openedMode: CodeMode = functions.templates ? parsePreferences(readPreferencesRaw()).codeMode : "program";
+        const preferred = languageFor(openedMode, functions.templates, loadLanguage());
+        setMode(openedMode);
         setLanguage(preferred);
-        setCode(STARTER_CODE[preferred] ?? "");
+        setCode(starterCode(preferred, openedMode, functions.templates));
       }
       setLoadedProblemId(currentProblemId);
       setDirty(false);
@@ -192,7 +217,7 @@ export default function ContestWorkspace() {
       setTestError(null);
     })();
     return () => { cancelled = true; };
-  }, [currentProblemId, contestId, ongoing]);
+  }, [currentProblem, contestId, ongoing]);
 
   useEffect(() => {
     if (!draftReady || !dirty) return;
@@ -212,6 +237,7 @@ export default function ContestWorkspace() {
         user_id: session.user.id,
         code,
         language,
+        mode,
         updated_at: new Date().toISOString(),
       });
       if (cancelled) return;
@@ -223,7 +249,7 @@ export default function ContestWorkspace() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [code, language, contestId, currentProblemId, draftReady, dirty, saveAttempt]);
+  }, [code, language, mode, contestId, currentProblemId, draftReady, dirty, saveAttempt]);
 
   // 방금 맞힌 문제는 다른 문제로 넘어간 뒤에도 탭에 동그라미가 남아야 한다.
   if (justSolved && currentProblemId !== undefined && !solvedIds.has(currentProblemId)) {
@@ -268,7 +294,13 @@ export default function ContestWorkspace() {
     setTestError(null);
     setActiveConsoleTab("run");
     try {
-      setTestResult(await testCode({ problem_id: currentProblem.id, language, code, contest_id: Number(contestId) }));
+      setTestResult(await testCode({
+        problem_id: currentProblem.id,
+        language,
+        code,
+        contest_id: Number(contestId),
+        ...(mode === "function" && { mode }),
+      }));
     } catch (err) {
       setTestResult(null);
       setTestError(errorMessage(err, "예제를 실행하지 못했습니다. 다시 눌러 주세요."));
@@ -289,6 +321,7 @@ export default function ContestWorkspace() {
         language,
         code,
         contest_id: Number(contestId),
+        ...(mode === "function" && { mode }),
       }));
     } catch (err) {
       setSubmitError(errorMessage(err, "제출하지 못했습니다. 다시 눌러 주세요."));
@@ -436,6 +469,7 @@ export default function ContestWorkspace() {
                 <ProblemSheet
                   problem={currentProblem}
                   examples={testCases}
+                  exampleViews={mode === "function" ? exampleViews(templates) : undefined}
                   number={letter(activeIdx)}
                   solved={solvedIds.has(currentProblem.id) || justSolved}
                 />
@@ -461,18 +495,41 @@ export default function ContestWorkspace() {
                   </button>
                 </div>
               </div>
-              <div className="flex-none border-b border-line px-1.5 py-1">
+              <div className="flex flex-none flex-wrap items-center gap-x-2 gap-y-1 border-b border-line px-1.5 py-1">
+                {templates && (
+                  <CodeModeToggle
+                    value={mode}
+                    disabled={!draftReady || busy}
+                    onChange={(next) => {
+                      if (next === mode) return;
+                      // 대회 화면은 문제마다 코드를 하나만 저장하므로, 형식을 바꾸면 그 형식의 시작 코드로 바꾼다.
+                      if (!isUntouchedStarter(code, templates) && !window.confirm(
+                        "형식을 바꾸면 지금 코드 대신 시작 코드가 들어갑니다. 쓰던 코드는 사라집니다. 바꿀까요?",
+                      )) return;
+                      const nextLanguage = languageFor(next, templates, language);
+                      setMode(next);
+                      setLanguage(nextLanguage);
+                      setCode(starterCode(nextLanguage, next, templates));
+                      setDirty(true);
+                      setSaveState("saving");
+                    }}
+                  />
+                )}
                 <LanguageSelect
                   value={language}
                   disabled={!draftReady}
+                  languages={modeLanguages(mode, templates)}
                   onChange={(next) => {
-                    if (Object.values(STARTER_CODE).includes(code)) setCode(STARTER_CODE[next]);
+                    if (isUntouchedStarter(code, templates)) setCode(starterCode(next, mode, templates));
                     setLanguage(next);
                     saveLanguage(next);
                     setDirty(true);
                     setSaveState("saving");
                   }}
                 />
+                {templatesFailed && (
+                  <p className="notice text-xs">함수 구현 시작 코드를 받지 못해 전체 프로그램만 쓸 수 있습니다.</p>
+                )}
               </div>
               <div className="min-h-0 flex-1">
                 <CodeEditor language={language} value={code} onChange={updateCode} readOnly={!draftReady} />

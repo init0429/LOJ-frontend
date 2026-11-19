@@ -15,6 +15,8 @@ export interface Preferences {
   showTags: boolean;
   /** 난이도를 solved.ac 티어로 보기. 끄면 LOJ 난이도로 본다 */
   showTier: boolean;
+  /** 함수 구현을 받는 문제를 처음 열 때의 형식. 문제마다 마지막에 고른 형식이 있으면 그것을 쓴다 */
+  codeMode: "function" | "program";
 }
 
 export const PREFERENCES_KEY = "loj-preferences";
@@ -31,11 +33,14 @@ export const DEFAULT_PREFERENCES: Preferences = {
   editorAutoClose: true,
   showTags: false,
   showTier: true,
+  codeMode: "function",
 };
 
 const oneOf = (value: unknown, allowed: number[], fallback: number) =>
   typeof value === "number" && allowed.includes(value) ? value : fallback;
 const flag = (value: unknown, fallback: boolean) => (typeof value === "boolean" ? value : fallback);
+const codeMode = (value: unknown, fallback: Preferences["codeMode"]) =>
+  value === "function" || value === "program" ? value : fallback;
 
 /** 저장된 글자 그대로를 받아 설정으로. 비었거나 읽을 수 없으면 기본값 */
 export function parsePreferences(raw: string | null): Preferences {
@@ -52,6 +57,7 @@ export function parsePreferences(raw: string | null): Preferences {
     editorAutoClose: flag(saved.editorAutoClose, d.editorAutoClose),
     showTags: flag(saved.showTags, d.showTags),
     showTier: flag(saved.showTier, d.showTier),
+    codeMode: codeMode(saved.codeMode, d.codeMode),
   };
 }
 

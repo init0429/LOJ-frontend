@@ -6,6 +6,8 @@ interface SubmissionInput {
   language: string;
   code: string;
   contest_id?: number;
+  /** function이면 함수(메서드)만 쓴 코드. 생략하면 전체 프로그램 */
+  mode?: "program" | "function";
 }
 
 interface JudgeResponse {

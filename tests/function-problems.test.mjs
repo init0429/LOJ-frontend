@@ -138,3 +138,102 @@ test("templates are public and validated", async () => {
   const { api: broken } = api({ body: { signature: null } });
   await assert.rejects(broken.getTemplates(12), /시작 코드를 받지 못했습니다/);
 });
+
+function memoryStorage() {
+  const data = new Map();
+  return {
+    data,
+    getItem: (key) => (data.has(key) ? data.get(key) : null),
+    setItem: (key, value) => data.set(key, String(value)),
+    removeItem: (key) => data.delete(key),
+  };
+}
+
+const LANGUAGES = {
+  LANGUAGE_LABELS: { python: "Python 3", cpp: "C++", sql: "SQL (SQLite)", java: "Java" },
+  STARTER_CODE: { python: "# start", cpp: "// start", sql: "SELECT 1;", java: "class Main {}" },
+};
+
+test("function drafts are kept apart and program drafts keep their old key", () => {
+  const localStorage = memoryStorage();
+  const drafts = load("../src/lib/drafts.ts", { localStorage, require: () => LANGUAGES });
+  drafts.saveDraft(7, "python", "print(1)");
+  assert.equal(localStorage.data.get("loj-draft:7:python"), "print(1)");
+  const starter = "class Solution:\n    pass\n";
+  assert.equal(drafts.loadDraft(7, "python", "function", starter), starter);
+  drafts.saveDraft(7, "python", "class Solution: ...", "function", starter);
+  assert.equal(localStorage.data.get("loj-draft:7:python:function"), "class Solution: ...");
+  assert.equal(drafts.loadDraft(7, "python"), "print(1)");
+  // 손대지 않은 함수 구현 시작 코드는 남기지 않는다.
+  drafts.saveDraft(7, "python", starter, "function", starter);
+  assert.equal(localStorage.data.has("loj-draft:7:python:function"), false);
+});
+
+test("the last mode is remembered per problem", () => {
+  const localStorage = memoryStorage();
+  const drafts = load("../src/lib/drafts.ts", { localStorage, require: () => LANGUAGES });
+  assert.equal(drafts.loadMode(7), null);
+  drafts.saveMode(7, "program");
+  assert.equal(drafts.loadMode(7), "program");
+  assert.equal(drafts.loadMode(8), null);
+  localStorage.setItem("loj-mode:8", "class");
+  assert.equal(drafts.loadMode(8), null);
+});
+
+test("the default code mode is a validated preference", () => {
+  const prefs = load("../src/lib/preferences.ts");
+  assert.equal(prefs.DEFAULT_PREFERENCES.codeMode, "function");
+  assert.equal(prefs.parsePreferences(JSON.stringify({ codeMode: "program" })).codeMode, "program");
+  assert.equal(prefs.parsePreferences(JSON.stringify({ codeMode: "class" })).codeMode, "function");
+  assert.deepEqual(plain(prefs.compactPreferences(prefs.parsePreferences(JSON.stringify({ codeMode: "program" })))), {
+    codeMode: "program",
+  });
+});
+
+function codeMode(getTemplates = async () => ({})) {
+  return load("../src/lib/code-mode.ts", {
+    require: (name) => (name === "./languages" ? LANGUAGES : { getTemplates }),
+  });
+}
+
+const TEMPLATES = {
+  signature: TWO_SUM,
+  starters: { java: "class Solution {}", python: "class Solution:\n    pass\n" },
+  examples: [{ id: 4, input: "nums = [1]", output: "0" }],
+};
+
+test("function mode offers only languages with a starter and falls back to Python", () => {
+  const cm = codeMode();
+  assert.deepEqual(plain(cm.modeLanguages("program", TEMPLATES)), ["python", "cpp", "sql", "java"]);
+  assert.deepEqual(plain(cm.modeLanguages("function", TEMPLATES)), ["python", "java"]);
+  assert.deepEqual(plain(cm.modeLanguages("function", null)), ["python", "cpp", "sql", "java"]);
+  assert.equal(cm.languageFor("function", TEMPLATES, "sql"), "python");
+  assert.equal(cm.languageFor("function", TEMPLATES, "java"), "java");
+  assert.equal(cm.languageFor("function", { ...TEMPLATES, starters: { java: "x" } }, "sql"), "java");
+  assert.equal(cm.starterCode("java", "function", TEMPLATES), "class Solution {}");
+  assert.equal(cm.starterCode("java", "program", TEMPLATES), "class Main {}");
+});
+
+test("untouched code is any starter of either mode", () => {
+  const cm = codeMode();
+  for (const code of ["", "  \n", "# start", "SELECT 1;", "class Solution {}"]) {
+    assert.equal(cm.isUntouchedStarter(code, TEMPLATES), true, code);
+  }
+  assert.equal(cm.isUntouchedStarter("class Solution {}", null), false);
+  assert.equal(cm.isUntouchedStarter("print(1)", TEMPLATES), false);
+  assert.equal(cm.exampleViews(TEMPLATES).get(4).input, "nums = [1]");
+  assert.equal(cm.exampleViews(null).size, 0);
+});
+
+test("templates are asked for only when the problem has a signature", async () => {
+  const asked = [];
+  const cm = codeMode(async (id) => {
+    asked.push(id);
+    return id === 1 ? TEMPLATES : id === 2 ? { signature: null, starters: {}, examples: [] } : Promise.reject(new Error("down"));
+  });
+  assert.deepEqual(plain(await cm.loadFunctionTemplates({ id: 9, signature: null })), { templates: null, failed: false });
+  assert.deepEqual(asked, []);
+  assert.equal((await cm.loadFunctionTemplates({ id: 1, signature: TWO_SUM })).templates.signature.function, "twoSum");
+  assert.deepEqual(plain(await cm.loadFunctionTemplates({ id: 2, signature: TWO_SUM })), { templates: null, failed: false });
+  assert.deepEqual(plain(await cm.loadFunctionTemplates({ id: 3, signature: TWO_SUM })), { templates: null, failed: true });
+});

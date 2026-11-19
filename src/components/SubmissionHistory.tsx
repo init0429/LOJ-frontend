@@ -4,6 +4,7 @@ import { Fragment, useState } from "react";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import SubmissionResult from "@/components/SubmissionResult";
 import Verdict from "@/components/Verdict";
+import { CODE_MODE_LABELS, isCodeMode, type CodeMode } from "@/lib/code-mode";
 import { formatDateTime } from "@/lib/format";
 import { LANGUAGE_LABELS } from "@/lib/languages";
 import { parseFeedback } from "@/lib/submission-feedback";
@@ -27,7 +28,7 @@ export default function SubmissionHistory({
   onLoadCode,
 }: {
   history: Submission[];
-  onLoadCode: (language: string, code: string) => void;
+  onLoadCode: (language: string, code: string, mode: CodeMode) => void;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, Detail>>({});
@@ -61,7 +62,10 @@ export default function SubmissionHistory({
             <Fragment key={sub.id}>
               <tr>
                 <td className="py-2!"><Verdict status={sub.status} size="sm" /></td>
-                <td>{LANGUAGE_LABELS[sub.language] ?? sub.language}</td>
+                <td>
+                  {LANGUAGE_LABELS[sub.language] ?? sub.language}
+                  {sub.mode === "function" && <span className="text-muted"> · {CODE_MODE_LABELS.function}</span>}
+                </td>
                 <td className="text-muted">{formatDateTime(sub.created_at)}</td>
                 <td className="py-1.5!">
                   <button
@@ -89,7 +93,7 @@ export default function SubmissionHistory({
                           <SubmissionResult submitting={false} submitted status={sub.status} feedback={detail.feedback} error={null} />
                         )}
                         <pre className="code-box max-h-80 overflow-auto">{detail.code}</pre>
-                        <button type="button" onClick={() => onLoadCode(sub.language, detail.code)} className="btn btn-sm btn-line">
+                        <button type="button" onClick={() => onLoadCode(sub.language, detail.code, isCodeMode(sub.mode) ? sub.mode : "program")} className="btn btn-sm btn-line">
                           이 코드를 편집기로 불러오기
                         </button>
                       </div>
