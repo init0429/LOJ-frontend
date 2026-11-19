@@ -15,6 +15,7 @@ import { RUN_SHORTCUT, SUBMIT_SHORTCUT, useRunShortcuts } from "@/hooks/useRunSh
 import { useSubmissionFeedback, useSubmissionState } from "@/hooks/useSubmissionState";
 import CodeEditor from "@/components/CodeEditor";
 import CodeModeToggle from "@/components/CodeModeToggle";
+import { useDialog } from "@/components/DialogProvider";
 import LanguageSelect from "@/components/LanguageSelect";
 import Logo from "@/components/Logo";
 import ProblemSheet from "@/components/ProblemSheet";
@@ -65,6 +66,7 @@ function ProblemWorkspaceContent() {
   const [templatesFailed, setTemplatesFailed] = useState(false);
   const [mode, setMode] = useState<CodeMode>("program");
   const starter = (lang: string, codeMode: CodeMode = mode) => starterCode(lang, codeMode, templates);
+  const ask = useDialog();
   const consolePanel = usePanelRef();
   const [mobilePane, setMobilePane] = useState<"description" | "code">("description");
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -94,21 +96,32 @@ function ProblemWorkspaceContent() {
     setCode(loadDraft(problemId, nextLanguage, next, starter(nextLanguage, next)));
   };
 
-  const resetCode = () => {
-    if (!window.confirm(`${LANGUAGE_LABELS[language] ?? language} 코드를 처음 상태로 되돌릴까요? 쓰던 코드는 사라집니다.`)) return;
+  const resetCode = async () => {
+    const ok = await ask({
+      title: "처음 코드로 되돌릴까요?",
+      message: `${LANGUAGE_LABELS[language] ?? language} 편집기가 시작 코드로 바뀝니다. 쓰던 코드는 사라집니다.`,
+      confirmLabel: "되돌리기",
+      tone: "danger",
+    });
+    if (!ok) return;
     const initial = starter(language);
     setCode(initial);
     saveDraft(problemId, language, initial, mode, initial);
   };
 
-  const loadSubmissionCode = (submittedLanguage: string, submittedCode: string, submittedMode: CodeMode) => {
+  const loadSubmissionCode = async (submittedLanguage: string, submittedCode: string, submittedMode: CodeMode) => {
     // 함수 구현으로 낸 코드는 지금도 함수 구현을 받는 문제일 때만 그 형식으로 불러온다.
     const targetMode: CodeMode = submittedMode === "function" && templates ? "function" : "program";
     const current = submittedLanguage === language && targetMode === mode
       ? code
       : loadDraft(problemId, submittedLanguage, targetMode, starter(submittedLanguage, targetMode));
     const untouched = current === starter(submittedLanguage, targetMode) || current === submittedCode;
-    if (!untouched && !window.confirm("편집기의 코드를 이 제출의 코드로 바꿀까요? 지금 쓰던 코드는 사라집니다.")) return;
+    if (!untouched && !(await ask({
+      title: "이 제출의 코드를 불러올까요?",
+      message: "편집기에 지금 쓰던 코드 대신 이 제출의 코드가 들어갑니다. 쓰던 코드는 사라집니다.",
+      confirmLabel: "불러오기",
+      tone: "danger",
+    }))) return;
     if (templates) {
       setMode(targetMode);
       saveMode(problemId, targetMode);
@@ -394,7 +407,7 @@ function ProblemWorkspaceContent() {
                   </div>
                   <button
                     type="button"
-                    onClick={resetCode}
+                    onClick={() => void resetCode()}
                     title="처음 코드로 되돌리기"
                     aria-label="처음 코드로 되돌리기"
                     className="inline-flex size-7 flex-none items-center justify-center rounded-md text-muted hover:bg-fill hover:text-fg"

@@ -28,7 +28,7 @@ export default function SubmissionHistory({
   onLoadCode,
 }: {
   history: Submission[];
-  onLoadCode: (language: string, code: string, mode: CodeMode) => void;
+  onLoadCode: (language: string, code: string, mode: CodeMode) => void | Promise<void>;
 }) {
   const [openId, setOpenId] = useState<string | null>(null);
   const [details, setDetails] = useState<Record<string, Detail>>({});
@@ -93,7 +93,7 @@ export default function SubmissionHistory({
                           <SubmissionResult submitting={false} submitted status={sub.status} feedback={detail.feedback} error={null} />
                         )}
                         <pre className="code-box max-h-80 overflow-auto">{detail.code}</pre>
-                        <button type="button" onClick={() => onLoadCode(sub.language, detail.code, isCodeMode(sub.mode) ? sub.mode : "program")} className="btn btn-sm btn-line">
+                        <button type="button" onClick={() => void onLoadCode(sub.language, detail.code, isCodeMode(sub.mode) ? sub.mode : "program")} className="btn btn-sm btn-line">
                           이 코드를 편집기로 불러오기
                         </button>
                       </div>

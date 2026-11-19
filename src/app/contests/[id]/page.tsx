@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Code, CloudUpload, FileText, Play, SquareCheck, Terminal, Timer } from "lucide-react";
@@ -9,6 +9,7 @@ import { RUN_SHORTCUT, SUBMIT_SHORTCUT, useRunShortcuts } from "@/hooks/useRunSh
 import { useSubmissionFeedback, useSubmissionState } from "@/hooks/useSubmissionState";
 import CodeEditor from "@/components/CodeEditor";
 import CodeModeToggle from "@/components/CodeModeToggle";
+import { useDialog } from "@/components/DialogProvider";
 import ContestStandings from "@/components/ContestStandings";
 import LanguageSelect from "@/components/LanguageSelect";
 import Logo from "@/components/Logo";
@@ -18,6 +19,7 @@ import SubmissionResult from "@/components/SubmissionResult";
 import TestRunResult from "@/components/TestRunResult";
 import ThemeToggle from "@/components/ThemeToggle";
 import {
+  CODE_MODE_LABELS,
   exampleViews,
   isCodeMode,
   isUntouchedStarter,
@@ -67,6 +69,9 @@ export default function ContestWorkspace() {
   const [templates, setTemplates] = useState<FunctionTemplates | null>(null);
   const [templatesFailed, setTemplatesFailed] = useState(false);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
+  const ask = useDialog();
+  // 뒤로 가기를 여러 번 눌러도 안내 창은 하나만 띄운다.
+  const leaveNoticeOpen = useRef(false);
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">(
     "idle",
   );
@@ -282,11 +287,19 @@ export default function ContestWorkspace() {
     history.pushState(null, "", location.href);
     const onPopState = () => {
       history.pushState(null, "", location.href);
-      alert("대회가 진행 중일 때는 이 화면을 벗어날 수 없습니다. 쓰던 코드는 자동으로 저장됩니다.");
+      if (leaveNoticeOpen.current) return;
+      leaveNoticeOpen.current = true;
+      void ask({
+        title: "대회 중에는 이 화면을 벗어날 수 없습니다",
+        message: "쓰던 코드는 자동으로 저장됩니다. 대회가 끝나면 다른 화면으로 갈 수 있습니다.",
+        cancelLabel: null,
+      }).finally(() => {
+        leaveNoticeOpen.current = false;
+      });
     };
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
-  }, [phase]);
+  }, [phase, ask]);
 
   const handleTest = async () => {
     if (!currentProblem || !draftReady || phase !== "ongoing") return;
@@ -500,12 +513,15 @@ export default function ContestWorkspace() {
                   <CodeModeToggle
                     value={mode}
                     disabled={!draftReady || busy}
-                    onChange={(next) => {
+                    onChange={async (next) => {
                       if (next === mode) return;
                       // 대회 화면은 문제마다 코드를 하나만 저장하므로, 형식을 바꾸면 그 형식의 시작 코드로 바꾼다.
-                      if (!isUntouchedStarter(code, templates) && !window.confirm(
-                        "형식을 바꾸면 지금 코드 대신 시작 코드가 들어갑니다. 쓰던 코드는 사라집니다. 바꿀까요?",
-                      )) return;
+                      if (!isUntouchedStarter(code, templates) && !(await ask({
+                        title: `${CODE_MODE_LABELS[next]}으로 바꿀까요?`,
+                        message: "이 문제의 코드는 하나만 저장되므로, 지금 코드 대신 시작 코드가 들어갑니다. 쓰던 코드는 사라집니다.",
+                        confirmLabel: "바꾸기",
+                        tone: "danger",
+                      }))) return;
                       const nextLanguage = languageFor(next, templates, language);
                       setMode(next);
                       setLanguage(nextLanguage);

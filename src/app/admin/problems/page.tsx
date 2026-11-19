@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase";
 import { useIsAdmin } from "@/hooks/useIsAdmin";
 import AdminGate from "@/components/AdminGate";
 import AdminTabs from "@/components/AdminTabs";
+import { useDialog } from "@/components/DialogProvider";
 import Difficulty from "@/components/Difficulty";
 import FunctionSignatureFields from "@/components/FunctionSignatureFields";
 import { ExampleNotationHelper, FunctionCheck } from "@/components/FunctionTestTools";
@@ -71,6 +72,7 @@ const emptyTestCase = (): TestCaseDraft => ({
 
 export default function AdminProblemsPage() {
   const { checking, isAdmin } = useIsAdmin();
+  const ask = useDialog();
   const [existing, setExisting] = useState<ProblemRow[]>([]);
 
   const [title, setTitle] = useState("");
@@ -192,7 +194,7 @@ export default function AdminProblemsPage() {
   };
 
   /** 등록과 수정이 같이 쓰는 확인. 문제가 있으면 오류 문구를 띄우고 null을 돌려준다. */
-  const validate = (): { bojId: number | null } | null => {
+  const validate = async (): Promise<{ bojId: number | null } | null> => {
     setError(null);
     setCreated(null);
     const fail = (message: string) => {
@@ -206,7 +208,11 @@ export default function AdminProblemsPage() {
     if (testCases.length === 0) return fail("테스트케이스가 하나 이상 있어야 합니다.");
     if (
       testCases.some((tc) => tc.input_data === "" && tc.expected_output === "") &&
-      !window.confirm("입력과 출력이 모두 빈 테스트케이스가 있습니다. 그대로 저장할까요?")
+      !(await ask({
+        title: "빈 테스트케이스가 있습니다",
+        message: "입력과 출력이 모두 빈 테스트케이스가 있습니다. 그대로 저장할까요?",
+        confirmLabel: "그대로 저장",
+      }))
     ) return null;
     return { bojId: boj.bojId };
   };
@@ -225,7 +231,12 @@ export default function AdminProblemsPage() {
         checked.slice(0, MAX_CHECKED_TESTS).map((tc) => ({ input: tc.input_data, output: tc.expected_output })),
       );
       const failing = preview.tests.filter((test) => test.error).length;
-      if (failing > 0 && !window.confirm(`함수 구현으로는 맞힐 수 없는 테스트가 ${failing}개 있습니다(테스트 아래 빨간 글씨). 그대로 저장할까요?`)) {
+      if (failing > 0 && !(await ask({
+        title: "함수 구현으로 맞힐 수 없는 테스트가 있습니다",
+        message: `테스트 ${failing}개가 시그니처와 맞지 않습니다(테스트 아래 빨간 글씨). 이대로 저장하면 함수 구현으로 낸 풀이는 그 테스트에서 틀립니다.`,
+        confirmLabel: "그대로 저장",
+        tone: "danger",
+      }))) {
         return false;
       }
       return preview.signature;
@@ -257,7 +268,12 @@ export default function AdminProblemsPage() {
   };
 
   const startEdit = async (row: ProblemRow) => {
-    if (editingId !== null && editingId !== row.id && !window.confirm(`${editingId}번 문제를 고치던 내용을 버리고 ${row.id}번을 열까요?`)) return;
+    if (editingId !== null && editingId !== row.id && !(await ask({
+      title: `${row.id}번 문제를 열까요?`,
+      message: `${editingId}번 문제에서 저장하지 않고 고친 내용은 사라집니다.`,
+      confirmLabel: "열기",
+      tone: "danger",
+    }))) return;
     setOpeningId(row.id);
     setListMessage(null);
     const [problem, cases] = await Promise.all([
@@ -364,7 +380,12 @@ export default function AdminProblemsPage() {
       const reasons = [subs.count ? `제출 ${subs.count}개` : "", contests.count ? `대회 ${contests.count}곳` : ""].filter(Boolean).join(", ");
       return setListMessage({ ok: false, text: `${row.id}번 문제는 ${reasons}에 쓰여서 지울 수 없습니다. 내용을 고치려면 "수정"을 쓰세요.` });
     }
-    if (!window.confirm(`${row.id}번 “${row.title}” 문제와 테스트케이스를 지울까요? 되돌릴 수 없습니다.`)) {
+    if (!(await ask({
+      title: `${row.id}번 문제를 지울까요?`,
+      message: `“${row.title}” 문제와 테스트케이스를 모두 지웁니다. 되돌릴 수 없습니다.`,
+      confirmLabel: "지우기",
+      tone: "danger",
+    }))) {
       setDeletingId(null);
       return;
     }
@@ -380,7 +401,7 @@ export default function AdminProblemsPage() {
   };
 
   const handleSave = async () => {
-    const checked = validate();
+    const checked = await validate();
     if (!checked) return;
     setSubmitting(true);
     const savedSignature = await resolveSignature();
