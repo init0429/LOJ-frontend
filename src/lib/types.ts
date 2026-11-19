@@ -11,6 +11,8 @@ export interface Problem {
   memory_limit_mb: number;
   /** 함수 구현을 받는 문제면 시그니처(모양은 lib/signature.ts). 아니면 null */
   signature?: unknown;
+  /** 대회 전용 문제. 대회가 끝나 다음 번호로 공개되면 false가 된다 */
+  contest_only?: boolean;
 }
 
 export interface Contest {

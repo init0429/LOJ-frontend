@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, Braces, ListChecks, LoaderCircle, Sparkles, Trophy } from "lucide-react";
 import { errorMessage } from "@/lib/errors";
 import { LANGUAGE_LABELS } from "@/lib/languages";
+import { countPublicProblems } from "@/lib/public-problems";
 import { supabase } from "@/lib/supabase";
 
 // 로그인할 수 있는 학교 이메일 도메인. Google 로그인 화면에서 이 도메인 계정을 먼저 보여 준다.
@@ -73,10 +74,10 @@ export default function GuestLanding() {
   useEffect(() => {
     let active = true;
     void Promise.all([
-      supabase.from("problems").select("id", { count: "exact", head: true }),
+      countPublicProblems(),
       supabase.from("contests").select("id", { count: "exact", head: true }),
     ]).then(([problems, contests]) => {
-      if (active) setCounts({ problems: problems.count ?? null, contests: contests.count ?? null });
+      if (active) setCounts({ problems, contests: contests.count ?? null });
     });
     return () => {
       active = false;

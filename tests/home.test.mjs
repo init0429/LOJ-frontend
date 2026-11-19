@@ -20,6 +20,13 @@ test("stats count each solved problem once and ignore submissions still being ju
   assert.deepEqual(plain(home.summarize([])), { solved: 0, submissions: 0, acceptance: null });
 });
 
+test("solved problems count only problems in the public list when one is given", () => {
+  // 1000000001은 대회 전용 문제(공개 전). 제출 수와 정답률에는 들어가지만 푼 문제에는 넣지 않는다.
+  const subs = [sub(1, "Accepted", 1), sub(1000000001, "Accepted", 2), sub(2, "Wrong Answer", 3)];
+  assert.deepEqual(plain(home.summarize(subs, new Set([1, 2]))), { solved: 1, submissions: 3, acceptance: 67 });
+  assert.equal(home.summarize(subs).solved, 2);
+});
+
 test("unsolved attempts are the latest touched problems that were never accepted", () => {
   const subs = [
     sub(1, "Wrong Answer", 1),

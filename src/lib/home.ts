@@ -17,11 +17,16 @@ export interface MyStats {
 
 const judging = (status: string) => status === "Pending" || status === "Running";
 
-export function summarize(submissions: MySubmission[]): MyStats {
+/**
+ * 내 기록. countable을 주면 푼 문제는 그 문제들만 센다(문제 목록에 공개된 문제. 대회 전용 문제는
+ * 대회가 끝나 공개되기 전까지 "푼 문제 n / 전체"에 넣지 않는다). 제출 수와 정답률은 모든 제출로 센다.
+ */
+export function summarize(submissions: MySubmission[], countable?: Set<number>): MyStats {
   const finished = submissions.filter((sub) => !judging(sub.status));
   const accepted = finished.filter((sub) => sub.status === "Accepted");
+  const solved = new Set(accepted.map((sub) => sub.problem_id));
   return {
-    solved: new Set(accepted.map((sub) => sub.problem_id)).size,
+    solved: countable ? [...solved].filter((id) => countable.has(id)).length : solved.size,
     submissions: finished.length,
     acceptance: finished.length ? Math.round((accepted.length / finished.length) * 100) : null,
   };

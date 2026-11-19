@@ -51,6 +51,13 @@ function ProblemWorkspaceContent() {
 
   const [problem, setProblem] = useState<Problem | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+  // 대회 전용 문제면 그 대회. 공개되기 전에는 여기서 풀지 않고 대회 화면으로 안내한다.
+  const [contestOnly, setContestOnly] = useState<{
+    title: string;
+    contest: { id: number; title: string; end_time: string } | null;
+    /** 대회가 이미 끝났는지(공개를 기다리는 중) */
+    ended: boolean;
+  } | null>(null);
   const [testCases, setTestCases] = useState<TestCase[]>([]);
   const [solvedBefore, setSolvedBefore] = useState(false);
   const [history, setHistory] = useState<Submission[]>([]);
@@ -162,6 +169,21 @@ function ProblemWorkspaceContent() {
       if (cancelled) return;
       if (error || !data) {
         setLoadError("문제를 불러오지 못했습니다. 주소가 맞는지 확인해 주세요.");
+        return;
+      }
+      if (data.contest_only) {
+        const { data: links } = await supabase
+          .from("contest_problems")
+          .select("contests(id, title, end_time)")
+          .eq("problem_id", problemId)
+          .returns<{ contests: { id: number; title: string; end_time: string } | null }[]>();
+        if (cancelled) return;
+        const contest = links?.find((row) => row.contests)?.contests ?? null;
+        setContestOnly({
+          title: data.title,
+          contest,
+          ended: contest !== null && new Date(contest.end_time).getTime() <= Date.now(),
+        });
         return;
       }
       // 함수 구현을 받는 문제면 시작 코드를 받은 뒤에 편집기를 연다(전체 프로그램 코드가 잠깐 보이지 않게).
@@ -301,6 +323,27 @@ function ProblemWorkspaceContent() {
       <div className="page page-narrow">
         <p role="alert" className="notice-error">{loadError}</p>
         <Link href="/problems" className="btn btn-line mt-6">문제 목록으로 돌아가기</Link>
+      </div>
+    );
+  }
+
+  if (contestOnly) {
+    const { contest, ended } = contestOnly;
+    return (
+      <div className="page page-narrow">
+        <Link href="/" className="text-lg" aria-label="LOJ 홈"><Logo /></Link>
+        <h1 className="page-title mt-8">{contestOnly.title}</h1>
+        <p className="page-lead">
+          {ended
+            ? "대회가 끝난 문제입니다. 곧 문제 목록에 새 번호로 공개됩니다. 잠시 뒤에 문제 목록에서 찾아 주세요."
+            : "대회 전용 문제입니다. 대회 화면에서 풀 수 있고, 대회가 끝나면 문제 목록에 공개됩니다."}
+        </p>
+        <div className="mt-6 flex flex-wrap gap-2">
+          {contest && !ended && (
+            <Link href={`/contests/${contest.id}`} className="btn btn-fill">“{contest.title}” 대회로 가기</Link>
+          )}
+          <Link href="/problems" className="btn btn-line">문제 목록</Link>
+        </div>
       </div>
     );
   }

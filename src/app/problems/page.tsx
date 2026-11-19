@@ -35,11 +35,18 @@ export default function ProblemsPage() {
       } = await supabase.auth.getSession();
 
       const [problemsRes, statsRes] = await Promise.all([
-        // 티어 칸이 없는 DB(마이그레이션 전)면 난이도만으로 다시 읽는다.
+        // 대회 전용 문제는 대회가 끝나 다음 번호로 공개될 때까지 목록에 넣지 않는다.
+        // 마이그레이션 전이면 없는 칸을 빼고 다시 읽는다(대회 전용 표시 → 티어 순으로).
         supabase
           .from("problems")
           .select("id, title, time_limit_ms, memory_limit_mb, difficulty, solvedac_tier")
+          .eq("contest_only", false)
           .order("id", { ascending: true })
+          .then((listed) =>
+            listed.error
+              ? supabase.from("problems").select("id, title, time_limit_ms, memory_limit_mb, difficulty, solvedac_tier").order("id", { ascending: true })
+              : listed,
+          )
           .then((full) =>
             full.error
               ? supabase.from("problems").select("id, title, time_limit_ms, memory_limit_mb, difficulty").order("id", { ascending: true })

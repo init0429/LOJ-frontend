@@ -11,6 +11,7 @@ import { formatDateTime, formatUntil } from "@/lib/format";
 import { activeContests, myRank, summarize, unsolvedAttempts, type ContestSummary, type MySubmission } from "@/lib/home";
 import { LANGUAGE_LABELS } from "@/lib/languages";
 import { PROFILE_EVENT } from "@/lib/profile";
+import { fetchPublicProblemIds } from "@/lib/public-problems";
 import { getRecommendations, type Recommendations } from "@/lib/recommend-api";
 import { supabase } from "@/lib/supabase";
 
@@ -28,6 +29,7 @@ interface RecentSubmission {
   language: string;
   created_at: string;
   mode?: string;
+  contest_id: number | null;
 }
 
 interface Overview {
@@ -36,7 +38,8 @@ interface Overview {
   attempts: ProblemSummary[];
   /** 최근 제출과 이어서 풀 문제의 제목 */
   titles: Map<number, string>;
-  problemCount: number | null;
+  /** 문제 목록에 공개된 문제. 대회 전용 문제(공개 전)는 없다. 못 읽었으면 null */
+  publicIds: Set<number> | null;
   rank: ReturnType<typeof myRank>;
   contests: ContestSummary[];
 }
@@ -85,12 +88,12 @@ export default function MemberHome({ session }: { session: Session }) {
         // 운영 DB에는 submissions → problems 외래 키가 없어 problems(title)로 이어 읽을 수 없다. 제목은 아래에서 따로 읽는다.
         supabase
           .from("submissions")
-          .select("id, problem_id, status, language, created_at, mode")
+          .select("id, problem_id, status, language, created_at, mode, contest_id")
           .eq("user_id", userId)
           .order("created_at", { ascending: false })
           .limit(5)
           .returns<RecentSubmission[]>(),
-        supabase.from("problems").select("id", { count: "exact", head: true }),
+        fetchPublicProblemIds(),
         supabase.from("leaderboard").select("user_id, rating").order("rating", { ascending: false }),
         supabase
           .from("contests")
@@ -104,7 +107,11 @@ export default function MemberHome({ session }: { session: Session }) {
         return;
       }
 
-      const attemptIds = unsolvedAttempts(all.data);
+      const publicIds = problems ? new Set(problems) : null;
+      // 대회 전용 문제는 대회 화면에서만 풀 수 있으니 "이어서 풀기"에 넣지 않는다.
+      const attemptIds = unsolvedAttempts(
+        publicIds ? all.data.filter((sub) => publicIds.has(sub.problem_id)) : all.data,
+      );
       const recentRows = recent.data ?? [];
       const wanted = [...new Set([...attemptIds, ...recentRows.map((row) => row.problem_id)])];
       const byId = new Map<number, ProblemSummary>();
@@ -122,7 +129,7 @@ export default function MemberHome({ session }: { session: Session }) {
         // 지워졌거나 아직 공개되지 않은 문제는 이어서 풀 수 없으니 뺀다.
         attempts: attemptIds.flatMap((id) => (byId.has(id) ? [byId.get(id)!] : [])),
         titles: new Map([...byId].map(([id, problem]) => [id, problem.title])),
-        problemCount: problems.count ?? null,
+        publicIds,
         rank: board.error ? null : myRank(board.data ?? [], userId),
         contests: contests.data ?? [],
       });
@@ -152,7 +159,7 @@ export default function MemberHome({ session }: { session: Session }) {
     );
   }
 
-  const stats = overview ? summarize(overview.submissions) : null;
+  const stats = overview ? summarize(overview.submissions, overview.publicIds ?? undefined) : null;
   const upcoming = overview ? activeContests(overview.contests, now) : [];
 
   return (
@@ -161,7 +168,7 @@ export default function MemberHome({ session }: { session: Session }) {
       <p className="page-lead">오늘도 한 문제 풀어 볼까요?</p>
 
       <section aria-label="내 기록" className="mt-6 grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="푼 문제" value={stats ? String(stats.solved) : null} sub={overview?.problemCount != null ? `/ ${overview.problemCount}` : undefined} />
+        <Stat label="푼 문제" value={stats ? String(stats.solved) : null} sub={overview?.publicIds ? `/ ${overview.publicIds.size}` : undefined} />
         <Stat label="제출" value={stats ? String(stats.submissions) : null} />
         <Stat label="정답률" value={stats ? (stats.acceptance === null ? "–" : `${stats.acceptance}%`) : null} />
         <Stat
@@ -225,12 +232,19 @@ export default function MemberHome({ session }: { session: Session }) {
               <p className="notice text-sm">아직 제출한 적이 없어요.</p>
             ) : (
               <ul className="box divide-y divide-line">
-                {overview.recent.map((sub) => (
+                {overview.recent.map((sub) => {
+                  // 대회 전용 문제(공개 전)는 번호 대신 대회 문제라고 쓰고 대회 화면으로 보낸다.
+                  const contestOnly = overview.publicIds !== null && !overview.publicIds.has(sub.problem_id) && sub.contest_id !== null;
+                  return (
                   <li key={sub.id}>
-                    <Link href={`/problems/${sub.problem_id}`} className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-4 py-3 hover:bg-fill">
+                    <Link
+                      href={contestOnly ? `/contests/${sub.contest_id}` : `/problems/${sub.problem_id}`}
+                      className="flex flex-wrap items-center gap-x-3 gap-y-0.5 px-4 py-3 hover:bg-fill"
+                    >
                       <span className="w-20 flex-none"><Verdict status={sub.status} size="sm" /></span>
                       <span className="min-w-0 flex-1 truncate">
-                        <span className="text-muted tabular-nums">{sub.problem_id}번</span> {overview.titles.get(sub.problem_id) ?? ""}
+                        <span className="text-muted tabular-nums">{contestOnly ? "대회 문제" : `${sub.problem_id}번`}</span>{" "}
+                        {overview.titles.get(sub.problem_id) ?? ""}
                       </span>
                       <span className="text-sm text-muted">
                         {LANGUAGE_LABELS[sub.language]?.replace(/ \(.*\)$/, "") ?? sub.language}
@@ -240,7 +254,8 @@ export default function MemberHome({ session }: { session: Session }) {
                       </span>
                     </Link>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </Section>
